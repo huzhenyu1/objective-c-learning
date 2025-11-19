@@ -1,0 +1,9 @@
+{
+    "recommendations": [
+        "ms-vscode.cpptools",
+        "vadimcn.vscode-lldb",
+        "ms-vscode.cpptools-extension-pack"
+    ],
+    "unwantedRecommendations": []
+}
+

@@ -1,0 +1,46 @@
+# 编译生成的文件
+*.o
+*.out
+*.dSYM
+*.a
+*.dylib
+*.so
+
+# 可执行文件
+basics/01_hello_world
+basics/02_data_types
+basics/03_control_flow
+oop/01_class_basic
+oop/02_properties
+oop/03_inheritance
+oop/04_protocol
+memory/01_arc
+memory/02_strong_weak
+advanced/01_category
+advanced/02_block
+examples/calculator/calculator
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+build/
+DerivedData/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# 编辑器
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# 临时文件
+*.tmp
+*.log
+
