@@ -1,0 +1,35 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "🚀 调试当前文件（自动）",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${fileDirname}/${fileBasenameNoExtension}",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "编译当前文件",
+            "stopOnEntry": false
+        },
+        {
+            "name": "🧮 调试 Calculator 项目",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/MAC- OC语法学习/examples/calculator/calculator",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "编译 Calculator",
+            "stopOnEntry": false
+        },
+        {
+            "name": "⚡ 调试性能测试",
+            "type": "lldb",
+            "request": "launch",
+            "program": "${workspaceFolder}/MAC- OC语法学习/examples/performance_test/performance_test",
+            "args": [],
+            "cwd": "${workspaceFolder}",
+            "preLaunchTask": "编译性能测试",
+            "stopOnEntry": false
+        }
+    ]
+}

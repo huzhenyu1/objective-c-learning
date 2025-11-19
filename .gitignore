@@ -6,19 +6,20 @@
 *.dylib
 *.so
 
-# 可执行文件
-basics/01_hello_world
-basics/02_data_types
-basics/03_control_flow
-oop/01_class_basic
-oop/02_properties
-oop/03_inheritance
-oop/04_protocol
-memory/01_arc
-memory/02_strong_weak
-advanced/01_category
-advanced/02_block
-examples/calculator/calculator
+# 可执行文件（在对应目录下）
+MAC- OC语法学习/differences/01_message_passing
+MAC- OC语法学习/differences/02_at_syntax
+MAC- OC语法学习/differences/03_memory_management
+MAC- OC语法学习/differences/04_autoreleasepool
+MAC- OC语法学习/differences/05_arc_autoreleasepool
+MAC- OC语法学习/essentials/01_property
+MAC- OC语法学习/essentials/02_category
+MAC- OC语法学习/essentials/03_block
+MAC- OC语法学习/foundation/01_common_classes
+MAC- OC语法学习/patterns/01_delegate_pattern
+MAC- OC语法学习/patterns/02_kvc_kvo
+MAC- OC语法学习/examples/calculator/calculator
+MAC- OC语法学习/examples/performance_test/performance_test
 
 # Xcode
 *.xcodeproj
@@ -31,16 +32,6 @@ DerivedData/
 .AppleDouble
 .LSOverride
 
-# 编辑器
-.vscode/launch.json
-.vscode/tasks.json
-.vscode/settings.json
-.idea/
-*.swp
-*.swo
-*~
-
 # 临时文件
 *.tmp
 *.log
-

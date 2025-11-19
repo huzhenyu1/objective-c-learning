@@ -1,0 +1,88 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "编译当前文件",
+            "type": "shell",
+            "command": "clang",
+            "args": [
+                "-framework", "Foundation",
+                "-fobjc-arc",
+                "-g",
+                "${file}",
+                "-o",
+                "${fileDirname}/${fileBasenameNoExtension}"
+            ],
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "编译 Calculator",
+            "type": "shell",
+            "command": "clang",
+            "args": [
+                "-framework", "Foundation",
+                "-fobjc-arc",
+                "-g",
+                "${workspaceFolder}/MAC- OC语法学习/examples/calculator/Calculator.m",
+                "${workspaceFolder}/MAC- OC语法学习/examples/calculator/main.m",
+                "-o",
+                "${workspaceFolder}/MAC- OC语法学习/examples/calculator/calculator"
+            ],
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "编译性能测试",
+            "type": "shell",
+            "command": "clang",
+            "args": [
+                "-framework", "Foundation",
+                "-fobjc-arc",
+                "-g",
+                "${workspaceFolder}/MAC- OC语法学习/examples/performance_test/PerformanceTest.m",
+                "-o",
+                "${workspaceFolder}/MAC- OC语法学习/examples/performance_test/performance_test"
+            ],
+            "group": "build",
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "编译所有示例",
+            "type": "shell",
+            "command": "cd \"${workspaceFolder}/MAC- OC语法学习\" && make all",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": ["$gcc"],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        },
+        {
+            "label": "清理编译文件",
+            "type": "shell",
+            "command": "cd \"${workspaceFolder}/MAC- OC语法学习\" && make clean",
+            "group": "build",
+            "problemMatcher": [],
+            "presentation": {
+                "reveal": "always",
+                "panel": "new"
+            }
+        }
+    ]
+}
