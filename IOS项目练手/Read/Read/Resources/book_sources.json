@@ -1,0 +1,128 @@
+[
+  {
+    "bookSourceComment": "➠搜索三字以上",
+    "bookSourceGroup": "常用",
+    "bookSourceName": "五二零同人°",
+    "bookSourceType": 0,
+    "bookSourceUrl": "http://www.txt520.com",
+    "customOrder": 57,
+    "enabled": true,
+    "enabledCookieJar": false,
+    "enabledExplore": true,
+    "exploreUrl": "玄幻::http://www.txt520.com/xuanhuan/index<,_{{page}}>.html\n修真::http://www.txt520.com/xiuzhen/index<,_{{page}}>.html\n都市::http://www.txt520.com/ds/index<,_{{page}}>.html\n言情::http://www.txt520.com/yq/index<,_{{page}}>.html\n网游::http://www.txt520.com/wangyou/index<,_{{page}}>.html\n科幻::http://www.txt520.com/kehuan/index<,_{{page}}>.html\n穿越::http://www.txt520.com/chuanyue/index<,_{{page}}>.html\n武侠::http://www.txt520.com/wuxia/index<,_{{page}}>.html\n历史::http://www.txt520.com/lishi/index<,_{{page}}>.html\n军事::http://www.txt520.com/junshi/index<,_{{page}}>.html\n乡土::http://www.txt520.com/xt/index<,_{{page}}>.html\n官场::http://www.txt520.com/guanchang/index<,_{{page}}>.html\n奇幻::http://www.txt520.com/qihuan/index<,_{{page}}>.html\n鬼话::http://www.txt520.com/guihua/index<,_{{page}}>.html\n耽美::http://www.txt520.com/danmei/index<,_{{page}}>.html\n同人::http://www.txt520.com/erciyuan/index<,_{{page}}>.html\n精品::http://www.txt520.com/xiaoshuo/index<,_{{page}}>.html\n传记::http://www.txt520.com/zhuanji/index<,_{{page}}>.html\n名著::http://www.txt520.com/mingzhu/index<,_{{page}}>.html\n排行::http://www.txt520.com/ranking/index<,_{{page}}>.html\n最新::http://www.txt520.com/latest/<,index_{{page}}.html>",
+    "lastUpdateTime": 1760290853191,
+    "respondTime": 3627,
+    "ruleBookInfo": {
+      "intro": "class.desc@textNodes",
+      "kind": "class.nav_time@textNodes",
+      "tocUrl": "text.在线阅读@href"
+    },
+    "ruleContent": {
+      "content": "class.content@p@textNodes",
+      "nextContentUrl": "text.下一页@href||text.下一节@href"
+    },
+    "ruleExplore": {},
+    "ruleSearch": {
+      "author": "tag.span.0@text",
+      "bookList": "class.list@li",
+      "bookUrl": "a@href",
+      "checkKeyWord": "四合院",
+      "intro": "class.desc@textNodes",
+      "lastChapter": "class.pubdate@text",
+      "name": "b@text##\\[.*\\]"
+    },
+    "ruleToc": {
+      "chapterList": "class.list@li@a",
+      "chapterName": "text",
+      "chapterUrl": "href"
+    },
+    "searchUrl": "http://www.txt520.com/e/search/index.php,{\n  \"charset\": \"gb2312\",\n  \"body\": \"keyboard={{key}}&show=title&classid=0\",\n  \"method\": \"POST\"\n}",
+    "weight": 0
+  },
+  {
+    "bookSourceComment": "精品书源",
+    "bookSourceGroup": "常用",
+    "bookSourceName": "笔趣阁",
+    "bookSourceType": 0,
+    "bookSourceUrl": "https://www.biquge.com",
+    "customOrder": 1,
+    "enabled": true,
+    "enabledCookieJar": false,
+    "enabledExplore": true,
+    "exploreUrl": "玄幻::https://www.biquge.com/xuanhuan/{{page}}.html\n武侠::https://www.biquge.com/wuxia/{{page}}.html",
+    "lastUpdateTime": 1760290853191,
+    "respondTime": 2000,
+    "ruleBookInfo": {
+      "intro": "class.intro@text",
+      "kind": "class.con_top@a@text",
+      "tocUrl": "text.目录@href"
+    },
+    "ruleContent": {
+      "content": "id.content@text",
+      "nextContentUrl": "text.下一章@href"
+    },
+    "ruleExplore": {},
+    "ruleSearch": {
+      "author": "class.author@text",
+      "bookList": "class.result-list@div",
+      "bookUrl": "class.result-game-item-title@a@href",
+      "intro": "class.result-game-item-desc@text",
+      "lastChapter": "class.result-game-item-info-tag@a@text",
+      "name": "class.result-game-item-title@a@text"
+    },
+    "ruleToc": {
+      "chapterList": "id.list@dd@a",
+      "chapterName": "text",
+      "chapterUrl": "href"
+    },
+    "searchUrl": "https://www.biquge.com/search.php?keyword={{key}}",
+    "weight": 10
+  },
+  {
+    "bookSourceName": "鸡丁小说",
+    "bookSourceType": 0,
+    "bookSourceUrl": "http://api.xingliangglobal.com",
+    "customOrder": 5703,
+    "enabled": true,
+    "enabledCookieJar": true,
+    "enabledExplore": true,
+    "exploreUrl": "@js:\nvar sort=[];\npush=(title,url,type,size)=>sort.push({\n    \"title\": title,\n    \"url\": url?url:\"\",\n    \"style\": {\n      \"layout_flexGrow\": type,\n      \"layout_flexBasisPercent\": size,\n    }\n  });\n\nbd=[\"必读榜\",\"潜力榜\",\"完本榜\",\n\"更新榜\",\"搜索榜\",\"评论榜\"];\npd=[[\"男频\",\"1\"],\n\t[\"女频\",\"2\"]].map([title,id]=>{\npush(title+'榜单', null, 1, 1);\n\t\tbd.map((title,index)=>{\t\t\t\n\t\t  \turl= `/module/rank?type=${index+1}&channel=${id}&page={{page}}`; \n\t\t\t\tpush(title, url, 1, 0.25);\t\t\t\t\t\t\t\t\t\t\n\t\t\t});\n\t});\n\nbook=[[\"男频\",\n[[\"玄幻\",\"lejRej\"],[\"都市\",\"mbk5ez\"],[\"武侠\",\"nel5aK\"],[\"仙侠\",\"vbmOeY\"],[\"军事\",\"penRe7\"],[\"历史\",\"xbojag\"],[\"游戏\",\"mep2bM\"],[\"科幻\",\"zbq2dp\"],[\"轻小说\",\"YerEdO\"]]],\n\t [\"女频\",\n[[\"现代言情\",\"9avmeG\"],[\"古代言情\",\"DdwRb1\"],[\"幻想言情\",\"7ax9by\"],[\"青春校园\",\"Pdy7aQ\"],[\"唯美纯爱\",\"kazYeJ\"],[\"同人衍生\",\"9aAOdv\"]]]].map([tit1,category]=>{\n\t \t\t[[\"连载\",\"0\"],[\"完结\",\"1\"]].map([tit2,id]=>{  \n\t    push(tit1+'•'+tit2, null, 1, 1);   \n     category.map([title,cid]=>{\t    \n\turl= `/novel?isComplete=${id}&sort=1&page={{page}}&categoryId=${cid}`;\t\n\t\t\t \tpush(title, url, 1, 0.25);\n        });\n      });\n  });\n\nJSON.stringify(sort)",
+    "header": "{\n    \"client-device\": \"4d9655dc356211b2d0a86a96e3e11a54\",\n    \"client-brand\": \"vivo\",\n    \"client-version\": \"1.1.0\",\n    \"client-channel\": \"android\",\n    \"client-name\": \"app.maoyankanshu.novel\",\n    \"alias-name\": \"dingdianapp\",\n    \"client-source\": \"android\",\n    \"Authorization\": \"bearereyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJodHRwOlwvXC9hcGkueGluZ2xpYW5nZ2xvYmFsLmNvbVwvYXV0aFwvdGhpcmQiLCJpYXQiOjE2OTkyNzUzOTQsImV4cCI6MTc5MjU4NzM5NCwibmJmIjoxNjk5Mjc1Mzk0LCJqdGkiOiJyYzhtYVByUUpLazlweFd6Iiwic3ViIjoxMjkyMjEsInBydiI6ImExY2IwMzcxODAyOTZjNmExOTM4ZWYzMGI0Mzc5NDY3MmRkMDE2YzUifQ.BqlcxKRH5oiBWQjSzTEHLpwUMD-dVhVe1ufcX_BZanw\",\n     \"Connection\": \"Keep-Alive\",\n    \"User-Agent\": \"okhttp/4.9.2\"\n}",
+    "lastUpdateTime": 1748240860365,
+    "respondTime": 6314,
+    "ruleBookInfo": {
+      "author": "authorName",
+      "coverUrl": "cover",
+      "init": "data",
+      "intro": "summary",
+      "kind": "categoryNames.*.className",
+      "lastChapter": "lastChapter.chapterName",
+      "name": "novelName",
+      "tocUrl": "/novel/{{$.novelId}}/chapters",
+      "wordCount": "wordNum"
+    },
+    "ruleContent": {
+      "content": "content"
+    },
+    "ruleExplore": {},
+    "ruleSearch": {
+      "author": "authorName",
+      "bookList": "data",
+      "bookUrl": "/novel/{{$.novelId}}?isSearch=1",
+      "checkKeyWord": "剑来",
+      "coverUrl": "cover",
+      "intro": "summary",
+      "kind": "categoryNames.[*].className",
+      "name": "novelName",
+      "wordCount": "wordNum"
+    },
+    "ruleToc": {
+      "chapterList": "data.list",
+      "chapterName": "chapterName",
+      "chapterUrl": "path\n@js:\nvar data=String(result),\ntype=\"AES/CBC/PKCS5Padding\",\nkey=\"4395daa50ad6baf7\",\niv=\"0123456789abcdef\",\ncipher=java.createSymmetricCrypto(type,key,iv),\nurl=cipher.decryptStr(data);\nurl;",
+      "updateTime": "{{$.updatedAt}} • {{$.wordNum}}字"
+    },
+    "searchUrl": "http://api.xingliangglobal.com/search?keyword={{key}}&page={{page}}",
+    "weight": 0
+  }
+]
