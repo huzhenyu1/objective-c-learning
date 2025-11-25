@@ -148,7 +148,6 @@
 
 - (void)performSearch:(NSString *)keyword {
     if (self.isSearching) {
-        // NSLog(@"⚠️ 搜索中，请稍候");
         return;
     }
 
@@ -157,7 +156,6 @@
     self.tableView.hidden = YES;
     [self.loadingIndicator startAnimating];
 
-    // NSLog(@"🔍 开始搜索: %@", keyword);
 
     // 获取所有启用的书源
     NSArray<BookSource *> *enabledSources = [[BookSourceManager sharedManager] enabledBookSources];
@@ -167,13 +165,11 @@
         return;
     }
 
-    // NSLog(@"📚 使用 %ld 个书源搜索", (long)enabledSources.count);
 
     // 多书源搜索
     [[BookSearchService sharedService] searchBooks:keyword
                                       inBookSources:enabledSources
                                            progress:^(BookSource *source, NSArray<SearchResultBook *> *books) {
-        // NSLog(@"✅ 书源 %@ 搜索完成，找到 %ld 本书", source.bookSourceName, (long)books.count);
     } completion:^(NSArray<SearchResultBook *> *allBooks) {
         [self handleSearchResults:allBooks keyword:keyword];
     }];
@@ -189,7 +185,6 @@
     if (books.count > 0) {
         self.tableView.hidden = NO;
         self.emptyLabel.hidden = YES;
-        // NSLog(@"✅ 搜索完成，共找到 %ld 本书", (long)books.count);
     } else {
         self.tableView.hidden = YES;
         self.emptyLabel.hidden = NO;

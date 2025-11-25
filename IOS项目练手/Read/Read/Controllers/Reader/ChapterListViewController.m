@@ -17,7 +17,7 @@
 @property (strong, nonatomic) UITableView *tableView;
 @property (strong, nonatomic) UIActivityIndicatorView *loadingIndicator;
 @property (strong, nonatomic) UILabel *errorLabel;
-@property (strong, nonatomic) NSArray<ChapterModel *> *chapters;
+// chapters 属性已在 .h 文件中公开声明，这里不需要重复
 @property (copy, nonatomic) NSString *tocUrl;  // 目录URL
 @end
 
@@ -44,8 +44,14 @@
     [self setupLoadingIndicator];
     [self setupErrorLabel];
 
-    // 开始加载章节列表
-    [self loadChapterList];
+    // 如果已经有章节列表（从阅读器传入），直接显示
+    if (self.chapters && self.chapters.count > 0) {
+        self.tableView.hidden = NO;
+        [self.tableView reloadData];
+    } else {
+        // 否则加载章节列表
+        [self loadChapterList];
+    }
 }
 
 - (void)setupTableView {
@@ -91,19 +97,13 @@
 #pragma mark - 加载章节列表
 
 - (void)loadChapterList {
-    NSLog(@"📚 开始加载章节列表");
-    NSLog(@"   书名: %@", self.book.title);
-    NSLog(@"   bookUrl: %@", self.book.bookUrl ?: @"(空)");
-    NSLog(@"   bookSourceName: %@", self.book.bookSourceName ?: @"(空)");
 
     if (!self.book.bookUrl || self.book.bookUrl.length == 0) {
-        NSLog(@"❌ 书籍URL为空");
         [self showError:@"❌\n书籍信息不完整"];
         return;
     }
 
     if (!self.book.bookSourceName || self.book.bookSourceName.length == 0) {
-        NSLog(@"❌ 书源名称为空");
         [self showError:@"❌\n书源信息丢失"];
         return;
     }
@@ -111,14 +111,10 @@
     // 获取书源
     BookSource *bookSource = [[BookSourceManager sharedManager] getBookSourceByName:self.book.bookSourceName];
     if (!bookSource) {
-        NSLog(@"❌ 未找到书源: %@", self.book.bookSourceName);
         [self showError:@"❌\n未找到书源"];
         return;
     }
 
-    NSLog(@"✅ 找到书源: %@", bookSource.bookSourceName);
-    NSLog(@"   ruleBookInfo.baseRule: %@", bookSource.ruleBookInfo.baseRule ?: @"(nil)");
-    NSLog(@"   ruleBookInfo.tocUrl: %@", bookSource.ruleBookInfo.tocUrl ?: @"(nil)");
 
     [self.loadingIndicator startAnimating];
     self.errorLabel.hidden = YES;
@@ -135,12 +131,7 @@
 - (void)handleChapterListSuccess:(NSString *)tocUrl chapters:(NSArray<ChapterModel *> *)chapters {
     [self.loadingIndicator stopAnimating];
 
-    NSLog(@"✅ 章节列表加载成功");
-    NSLog(@"   目录URL: %@", tocUrl);
-    NSLog(@"   章节数量: %ld", (long)chapters.count);
     if (chapters.count > 0) {
-        NSLog(@"   第一章: %@", chapters[0].chapterName);
-        NSLog(@"   第一章URL: %@", chapters[0].chapterUrl);
     }
 
     self.tocUrl = tocUrl;
@@ -149,7 +140,6 @@
     // 更新总章节数并保存
     self.book.totalChapters = chapters.count;
     [[BookshelfManager sharedManager] updateBook:self.book];
-    NSLog(@"💾 已更新书籍总章节数: %ld", (long)chapters.count);
 
     if (chapters.count > 0) {
         self.tableView.hidden = NO;
@@ -161,7 +151,6 @@
 
 - (void)handleChapterListFailure:(NSError *)error {
     [self.loadingIndicator stopAnimating];
-    NSLog(@"❌ 章节列表加载失败: %@", error.localizedDescription);
     NSString *message = [NSString stringWithFormat:@"❌\n加载失败\n%@", error.localizedDescription];
     [self showError:message];
 }

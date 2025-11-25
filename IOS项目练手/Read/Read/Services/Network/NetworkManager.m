@@ -28,8 +28,10 @@
     if (self) {
         // 配置 URLSession
         NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
-        config.timeoutIntervalForRequest = 10.0;  // 10秒超时（优化）
+        config.timeoutIntervalForRequest = 15.0;  // 15秒超时（平衡速度与可靠性）
+        config.timeoutIntervalForResource = 30.0;  // 资源总超时30秒
         config.HTTPMaximumConnectionsPerHost = 5;
+        config.requestCachePolicy = NSURLRequestReturnCacheDataElseLoad;  // 优先使用缓存
 
         _session = [NSURLSession sessionWithConfiguration:config];
         _tasks = [NSMutableArray array];
@@ -75,9 +77,7 @@
         return;
     }
 
-    // NSLog(@"🌐 GET: %@", urlString);
     if (headers && headers.count > 0) {
-        // NSLog(@"📋 Headers: %@", headers);
     }
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
@@ -123,7 +123,6 @@
         return;
     }
 
-    // NSLog(@"🌐 POST: %@ params: %@", urlString, params);
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     request.HTTPMethod = @"POST";
@@ -173,8 +172,6 @@
         return;
     }
 
-    // NSLog(@"🌐 POST: %@ body: %@", urlString, body);
-
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL:url];
     request.HTTPMethod = @"POST";
     [request setValue:@"application/x-www-form-urlencoded" forHTTPHeaderField:@"Content-Type"];
@@ -202,7 +199,6 @@
         });
 
         if (error) {
-            // NSLog(@"❌ 请求失败: %@", error.localizedDescription);
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (failure) {
                     failure(error);
@@ -212,7 +208,6 @@
         }
 
         if (!data) {
-            // NSLog(@"❌ 响应数据为空");
             NSError *emptyError = [NSError errorWithDomain:@"NetworkManager"
                                                      code:-1003
                                                  userInfo:@{NSLocalizedDescriptionKey: @"响应数据为空"}];
@@ -228,11 +223,8 @@
         NSString *html = [self parseHTMLFromData:data encoding:encoding];
 
         if (!html) {
-            // NSLog(@"⚠️ HTML 解析失败，使用原始数据");
             html = [[NSString alloc] initWithData:data encoding:NSUTF8StringEncoding] ?: @"";
         }
-
-        // NSLog(@"✅ 请求成功，数据大小: %lu bytes", (unsigned long)data.length);
 
         dispatch_async(dispatch_get_main_queue(), ^{
             if (success) {
@@ -328,7 +320,6 @@
         });
 
         if (error) {
-            // NSLog(@"❌ 图片下载失败: %@", error.localizedDescription);
             dispatch_async(dispatch_get_main_queue(), ^{
                 if (failure) {
                     failure(error);
@@ -338,7 +329,6 @@
         }
 
         if (!data || data.length == 0) {
-            // NSLog(@"❌ 图片数据为空");
             NSError *emptyError = [NSError errorWithDomain:@"NetworkManager"
                                                      code:-1003
                                                  userInfo:@{NSLocalizedDescriptionKey: @"图片数据为空"}];
@@ -350,7 +340,6 @@
             return;
         }
 
-        // NSLog(@"✅ 图片下载成功，大小: %lu bytes", (unsigned long)data.length);
 
         dispatch_async(dispatch_get_main_queue(), ^{
             if (success) {
@@ -366,7 +355,6 @@
 #pragma mark - 任务管理
 
 - (void)cancelAllRequests {
-    // NSLog(@"🚫 取消所有请求 (%lu 个)", (unsigned long)self.tasks.count);
 
     for (NSURLSessionTask *task in self.tasks) {
         [task cancel];

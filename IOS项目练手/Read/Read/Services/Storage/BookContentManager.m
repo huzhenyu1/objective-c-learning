@@ -36,7 +36,6 @@
         NSFileManager *fm = [NSFileManager defaultManager];
         if (![fm fileExistsAtPath:_cacheDirectory]) {
             [fm createDirectoryAtPath:_cacheDirectory withIntermediateDirectories:YES attributes:nil error:nil];
-            // NSLog(@"📁 创建缓存目录: %@", _cacheDirectory);
         }
     }
     return self;
@@ -60,7 +59,6 @@
 
 - (BOOL)saveChapter:(Chapter *)chapter {
     if (!chapter || !chapter.bookId || !chapter.chapterId) {
-        // NSLog(@"❌ 章节信息不完整");
         return NO;
     }
 
@@ -71,7 +69,6 @@
         NSError *error = nil;
         [fm createDirectoryAtPath:bookDir withIntermediateDirectories:YES attributes:nil error:&error];
         if (error) {
-            // NSLog(@"❌ 创建书籍目录失败: %@", error);
             return NO;
         }
     }
@@ -91,7 +88,6 @@
     NSError *error = nil;
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject:chapterData options:NSJSONWritingPrettyPrinted error:&error];
     if (error) {
-        // NSLog(@"❌ 章节 JSON 序列化失败: %@", error);
         return NO;
     }
 
@@ -99,9 +95,7 @@
     BOOL success = [jsonData writeToFile:filePath atomically:YES];
 
     if (success) {
-        // NSLog(@"💾 章节已保存: %@ - %@", chapter.chapterName, filePath);
     } else {
-        // NSLog(@"❌ 章节保存失败: %@", chapter.chapterName);
     }
 
     return success;
@@ -122,7 +116,6 @@
     NSError *error = nil;
     NSDictionary *chapterData = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
     if (error || ![chapterData isKindOfClass:[NSDictionary class]]) {
-        // NSLog(@"❌ 章节 JSON 解析失败: %@", error);
         return nil;
     }
 
@@ -140,7 +133,6 @@
         chapter.downloadDate = [NSDate dateWithTimeIntervalSince1970:timestamp];
     }
 
-    // NSLog(@"📖 章节已加载: %@", chapter.chapterName);
     return chapter;
 }
 
@@ -156,9 +148,7 @@
     BOOL success = [fm removeItemAtPath:filePath error:&error];
 
     if (success) {
-        // NSLog(@"🗑 章节已删除: %@ - %@", bookId, chapterId);
     } else {
-        // NSLog(@"❌ 章节删除失败: %@", error);
     }
 
     return success;
@@ -176,9 +166,7 @@
     BOOL success = [fm removeItemAtPath:bookDir error:&error];
 
     if (success) {
-        // NSLog(@"🗑 书籍所有章节已删除: %@", bookId);
     } else {
-        // NSLog(@"❌ 删除书籍章节失败: %@", error);
     }
 
     return success;
@@ -200,7 +188,6 @@
     NSError *error = nil;
     NSArray<NSString *> *files = [fm contentsOfDirectoryAtPath:bookDir error:&error];
     if (error) {
-        // NSLog(@"❌ 读取书籍目录失败: %@", error);
         return @[];
     }
 
@@ -230,7 +217,6 @@
     NSError *error = nil;
     NSArray<NSString *> *files = [fm subpathsOfDirectoryAtPath:self.cacheDirectory error:&error];
     if (error) {
-        // NSLog(@"❌ 读取缓存目录失败: %@", error);
         return 0;
     }
 
@@ -259,9 +245,7 @@
     if (success) {
         // 重新创建缓存目录
         [fm createDirectoryAtPath:self.cacheDirectory withIntermediateDirectories:YES attributes:nil error:nil];
-        // NSLog(@"🗑 缓存已清空");
     } else {
-        // NSLog(@"❌ 清空缓存失败: %@", error);
     }
 
     return success;

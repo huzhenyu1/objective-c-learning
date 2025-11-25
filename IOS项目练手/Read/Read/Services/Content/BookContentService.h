@@ -48,6 +48,13 @@ NS_ASSUME_NONNULL_BEGIN
                     success:(void(^)(ChapterContent *content))success
                     failure:(void(^)(NSError *error))failure;
 
+/**
+ * 获取缓存的章节列表（用于快速打开）
+ * @param book 书籍模型
+ * @return 缓存的章节列表，如果没有缓存则返回 nil
+ */
+- (nullable NSArray<ChapterModel *> *)getCachedChapterListForBook:(BookModel *)book;
+
 @end
 
 NS_ASSUME_NONNULL_END

@@ -60,13 +60,11 @@
     self.bookSources = [[BookSourceManager sharedManager] allBookSources];
     [self.tableView reloadData];
 
-    // NSLog(@"加载了 %ld 个书源", (long)self.bookSources.count);
 }
 
 #pragma mark - Button Actions
 
 - (void)addButtonTapped {
-    // NSLog(@"添加书源");
 
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"添加书源"
                                                                    message:@"请输入书源 JSON"
@@ -94,7 +92,6 @@
 }
 
 - (void)importButtonTapped {
-    // NSLog(@"导入书源");
 
     UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"导入书源"
                                                                    message:@"选择导入方式"

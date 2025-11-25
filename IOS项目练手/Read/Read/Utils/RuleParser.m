@@ -24,15 +24,11 @@
 
     if (!error && jsonObject) {
         // 是 JSON，使用 JSON 路径解析
-        // NSLog(@"📊 检测到 JSON 格式，使用 JSON 解析，规则: %@", rule);
         id result = [self extractFromJSON:jsonObject withRule:rule];
-        // NSLog(@"📊 JSON 解析结果类型: %@, 值: %@", NSStringFromClass([result class]), result);
         return result;
     } else {
         // 是 HTML，使用 HTML 解析
-        // NSLog(@"📄 检测到 HTML 格式，使用 HTML 解析，规则: %@", rule);
         id result = [HTMLParser extractFromHTML:content withRule:rule];
-        // NSLog(@"📄 HTML 解析结果类型: %@", NSStringFromClass([result class]));
         return result;
     }
 }

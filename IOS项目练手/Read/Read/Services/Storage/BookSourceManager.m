@@ -132,7 +132,6 @@
     NSError *error = nil;
     NSArray *jsonArray = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
     if (error || ![jsonArray isKindOfClass:[NSArray class]]) {
-        // NSLog(@"导入书源失败: %@", error);
         return NO;
     }
 
@@ -160,24 +159,20 @@
     NSError *error = nil;
     NSData *data = [NSJSONSerialization dataWithJSONObject:jsonArray options:NSJSONWritingPrettyPrinted error:&error];
     if (error) {
-        // NSLog(@"❌ 保存书源失败: %@", error);
         return NO;
     }
 
     BOOL success = [data writeToFile:self.dataFilePath atomically:YES];
-    // NSLog(@"💾 保存书源%@: %@", success ? @"成功" : @"失败", self.dataFilePath);
     return success;
 }
 
 - (BOOL)loadFromLocal {
     // 优先从 Documents 目录加载
     if ([[NSFileManager defaultManager] fileExistsAtPath:self.dataFilePath]) {
-        // NSLog(@"📂 从 Documents 加载书源");
         return [self loadFromDocuments];
     }
 
     // Documents 不存在，从 Bundle 加载默认书源
-    // NSLog(@"📦 从 Bundle 加载默认书源");
     return [self loadFromBundle];
 }
 
@@ -185,7 +180,6 @@
 - (BOOL)loadFromDocuments {
     NSData *data = [NSData dataWithContentsOfFile:self.dataFilePath];
     if (!data) {
-        // NSLog(@"❌ 无法读取 Documents 中的书源文件");
         return NO;
     }
 
@@ -196,14 +190,12 @@
 - (BOOL)loadFromBundle {
     NSString *bundlePath = [[NSBundle mainBundle] pathForResource:@"book_sources" ofType:@"json"];
     if (!bundlePath) {
-        // NSLog(@"⚠️ Bundle 中未找到 book_sources.json，使用硬编码默认书源");
         [self addDefaultBookSource];
         return YES;
     }
 
     NSData *data = [NSData dataWithContentsOfFile:bundlePath];
     if (!data) {
-        // NSLog(@"❌ 无法读取 Bundle 中的书源文件");
         return NO;
     }
 
@@ -212,7 +204,6 @@
     // 从 Bundle 加载后，立即保存到 Documents
     if (success) {
         [self saveToLocal];
-        // NSLog(@"✅ 已将默认书源保存到 Documents");
     }
 
     return success;
@@ -223,7 +214,6 @@
     NSError *error = nil;
     NSArray *jsonArray = [NSJSONSerialization JSONObjectWithData:data options:0 error:&error];
     if (error || ![jsonArray isKindOfClass:[NSArray class]]) {
-        // NSLog(@"❌ JSON 解析失败: %@", error);
         return NO;
     }
 
@@ -235,13 +225,11 @@
         }
     }
 
-    // NSLog(@"✅ 加载 %ld 个书源", (long)self.bookSources.count);
     return YES;
 }
 
 // 重置为默认书源
 - (BOOL)resetToDefaultBookSources {
-    // NSLog(@"🔄 重置为默认书源");
 
     // 删除 Documents 中的文件
     if ([[NSFileManager defaultManager] fileExistsAtPath:self.dataFilePath]) {

@@ -55,15 +55,12 @@
         return nil;
     }
 
-    NSLog(@"🔧 执行 JavaScript 脚本");
-    NSLog(@"   脚本长度: %ld", (long)script.length);
-
     // 创建 JavaScript 上下文
     JSContext *jsContext = [[JSContext alloc] init];
 
     // 设置异常处理
     jsContext.exceptionHandler = ^(JSContext *context, JSValue *exception) {
-        NSLog(@"❌ JavaScript 执行错误: %@", exception);
+        // JavaScript 执行错误（静默处理）
     };
 
     // 注入上下文变量
@@ -82,7 +79,6 @@
     // 转换结果
     if ([result isString]) {
         NSString *resultString = [result toString];
-        NSLog(@"✅ JavaScript 执行成功，结果: %@", resultString);
         return resultString;
     } else if ([result isNumber]) {
         return [result toNumber];
@@ -127,15 +123,9 @@
         return nil;
     }
 
-    NSLog(@"🔐 开始 AES 解密");
-    NSLog(@"   密文: %@", base64String);
-    NSLog(@"   密钥: %@", keyString);
-    NSLog(@"   IV: %@", ivString);
-
     // Base64 解码
     NSData *encryptedData = [[NSData alloc] initWithBase64EncodedString:base64String options:0];
     if (!encryptedData) {
-        NSLog(@"❌ Base64 解码失败");
         return nil;
     }
 
@@ -163,11 +153,9 @@
     if (cryptStatus == kCCSuccess) {
         NSData *decryptedData = [NSData dataWithBytesNoCopy:buffer length:numBytesDecrypted];
         NSString *result = [[NSString alloc] initWithData:decryptedData encoding:NSUTF8StringEncoding];
-        NSLog(@"✅ AES 解密成功: %@", result);
         return result;
     } else {
         free(buffer);
-        NSLog(@"❌ AES 解密失败，状态码: %d", cryptStatus);
         return nil;
     }
 }

@@ -2,7 +2,7 @@
 //  ReaderViewController.h
 //  Read
 //
-//  阅读页面
+//  阅读器主界面 - 支持上下/左右翻页、底部工具栏、预加载缓存
 //
 
 #import <UIKit/UIKit.h>
@@ -11,6 +11,11 @@
 #import "BookSource.h"
 
 NS_ASSUME_NONNULL_BEGIN
+
+typedef NS_ENUM(NSInteger, PageTurnMode) {
+    PageTurnModeVertical,    // 上下滑动（默认）
+    PageTurnModeHorizontal   // 左右翻页
+};
 
 @interface ReaderViewController : UIViewController
 
@@ -23,4 +28,3 @@ NS_ASSUME_NONNULL_BEGIN
 @end
 
 NS_ASSUME_NONNULL_END
-

@@ -148,7 +148,6 @@
         return;
     }
 
-    // NSLog(@"🔍 多书源搜索 \"%@\"，共 %ld 个书源", keyword, (long)bookSources.count);
 
     NSMutableArray<SearchResultBook *> *allBooks = [NSMutableArray array];
     dispatch_group_t group = dispatch_group_create();
@@ -175,7 +174,6 @@
 
             dispatch_group_leave(group);
         } failure:^(NSError *error) {
-            // NSLog(@"❌ 书源 %@ 搜索失败: %@", source.bookSourceName, error.localizedDescription);
 
             if (progress) {
                 dispatch_async(dispatch_get_main_queue(), ^{
@@ -188,7 +186,6 @@
     }
 
     dispatch_group_notify(group, dispatch_get_main_queue(), ^{
-        // NSLog(@"✅ 多书源搜索完成，共找到 %ld 本书", (long)allBooks.count);
         if (completion) {
             completion(allBooks);
         }
@@ -381,11 +378,9 @@
 
 - (NSDictionary<NSString *, NSString *> *)parseHeaders:(NSString *)headerString {
     if (!headerString || headerString.length == 0) {
-        // NSLog(@"⚠️ headerString 为空");
         return nil;
     }
 
-    // NSLog(@"🔍 原始 header 字符串: %@", headerString);
 
     // 解析 JSON 格式的 header
     NSData *jsonData = [headerString dataUsingEncoding:NSUTF8StringEncoding];
@@ -393,13 +388,10 @@
     NSDictionary *headerDict = [NSJSONSerialization JSONObjectWithData:jsonData options:0 error:&error];
 
     if (error) {
-        // NSLog(@"⚠️ 解析 header 失败: %@", error.localizedDescription);
-        // NSLog(@"⚠️ JSON 数据: %@", [[NSString alloc] initWithData:jsonData encoding:NSUTF8StringEncoding]);
         return nil;
     }
 
     if (![headerDict isKindOfClass:[NSDictionary class]]) {
-        // NSLog(@"⚠️ header 不是字典类型: %@", NSStringFromClass([headerDict class]));
         return nil;
     }
     return headerDict;
@@ -410,7 +402,6 @@
 - (void)cancelAllSearches {
     [[NetworkManager sharedManager] cancelAllRequests];
     [self.searchQueue cancelAllOperations];
-    // NSLog(@"🚫 取消所有搜索");
 }
 
 - (void)clearCache {
