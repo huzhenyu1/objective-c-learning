@@ -236,6 +236,9 @@ static const CGFloat kMaxFontSize = 30.0;
     [super viewDidLoad];
     self.view.backgroundColor = [UIColor systemBackgroundColor];
 
+    // ⭐ 配置导航栏样式
+    [self setupNavigationBar];
+
     [self setupUI];
     [self loadCurrentChapterContent];
     [self preloadNext3Chapters];  // 预加载接下来的3章
@@ -246,11 +249,49 @@ static const CGFloat kMaxFontSize = 30.0;
     });
 }
 
+#pragma mark - Navigation Bar
+
+- (void)setupNavigationBar {
+    // ⭐ 设置导航栏样式（与书架一致）
+    if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+        [appearance configureWithOpaqueBackground];
+        appearance.backgroundColor = [UIColor colorWithRed:0.55 green:0.27 blue:0.22 alpha:1.0];  // 棕红色背景
+        appearance.titleTextAttributes = @{
+            NSForegroundColorAttributeName: [UIColor whiteColor],
+            NSFontAttributeName: [UIFont boldSystemFontOfSize:18]
+        };
+        appearance.shadowColor = nil;  // 去除阴影
+
+        // ⭐ 自定义返回按钮样式（简洁的白色箭头）
+        UIImage *backImage = [UIImage systemImageNamed:@"chevron.left"];
+        [appearance setBackIndicatorImage:backImage transitionMaskImage:backImage];
+
+        self.navigationController.navigationBar.standardAppearance = appearance;
+        self.navigationController.navigationBar.scrollEdgeAppearance = appearance;
+        self.navigationController.navigationBar.tintColor = [UIColor whiteColor];  // 返回按钮颜色
+    } else {
+        self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.55 green:0.27 blue:0.22 alpha:1.0];
+        self.navigationController.navigationBar.titleTextAttributes = @{
+            NSForegroundColorAttributeName: [UIColor whiteColor],
+            NSFontAttributeName: [UIFont boldSystemFontOfSize:18]
+        };
+        self.navigationController.navigationBar.tintColor = [UIColor whiteColor];
+        self.navigationController.navigationBar.translucent = NO;
+    }
+
+    // ⭐ 设置标题
+    self.navigationItem.title = self.book.title;
+
+    // ⭐ 隐藏系统返回按钮的文字，只保留箭头
+    self.navigationItem.backBarButtonItem = [[UIBarButtonItem alloc] initWithTitle:@"" style:UIBarButtonItemStylePlain target:nil action:nil];
+}
+
 - (void)viewWillAppear:(BOOL)animated {
     [super viewWillAppear:animated];
 
-    // 不隐藏导航栏，保留返回按钮
-    // 用户可以通过返回按钮或侧滑手势返回
+    // ⭐ 默认隐藏导航栏（沉浸式阅读）
+    [self.navigationController setNavigationBarHidden:YES animated:YES];
 
     // ⭐ 开始记录阅读会话
     [[ReadingStatsManager sharedManager] startReadingSession:self.book.bookUrl bookTitle:self.book.title];
@@ -259,8 +300,26 @@ static const CGFloat kMaxFontSize = 30.0;
 - (void)viewWillDisappear:(BOOL)animated {
     [super viewWillDisappear:animated];
 
+    // ⭐ 离开时显示导航栏
+    [self.navigationController setNavigationBarHidden:NO animated:YES];
+
     // ⭐ 结束记录阅读会话
     [[ReadingStatsManager sharedManager] endReadingSession];
+
+    // ⭐ 恢复导航栏默认样式
+    if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+        [appearance configureWithOpaqueBackground];
+        appearance.backgroundColor = [UIColor colorWithRed:0.55 green:0.27 blue:0.22 alpha:1.0];  // 保持书架的棕红色
+        appearance.titleTextAttributes = @{
+            NSForegroundColorAttributeName: [UIColor whiteColor],
+            NSFontAttributeName: [UIFont boldSystemFontOfSize:18]
+        };
+        appearance.shadowColor = nil;
+
+        self.navigationController.navigationBar.standardAppearance = appearance;
+        self.navigationController.navigationBar.scrollEdgeAppearance = appearance;
+    }
 }
 
 #pragma mark - UI Setup
@@ -334,42 +393,56 @@ static const CGFloat kMaxFontSize = 30.0;
 }
 
 - (void)setupToolbar {
-    // 底部工具栏（初始隐藏）
+    // ⭐ 底部工具栏（初始隐藏）- 仿阅文风格，4个按钮
     CGFloat toolbarHeight = 60;
     self.toolbar = [[UIView alloc] initWithFrame:CGRectMake(0, self.view.bounds.size.height, self.view.bounds.size.width, toolbarHeight)];
-    self.toolbar.backgroundColor = [UIColor whiteColor];  // 白色背景
+    self.toolbar.backgroundColor = [UIColor colorWithWhite:0.98 alpha:1.0];  // 浅灰白背景
     self.toolbar.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleTopMargin;
 
-    // 计算按钮宽度（均分）
+    // 添加顶部分隔线
+    UIView *separator = [[UIView alloc] initWithFrame:CGRectMake(0, 0, self.view.bounds.size.width, 0.5)];
+    separator.backgroundColor = [[UIColor grayColor] colorWithAlphaComponent:0.3];
+    separator.autoresizingMask = UIViewAutoresizingFlexibleWidth;
+    [self.toolbar addSubview:separator];
+
+    // ⭐ 4个按钮均分宽度
     CGFloat screenWidth = self.view.bounds.size.width;
-    CGFloat buttonWidth = (screenWidth - 60) / 3;  // 减去左右边距和间距
+    CGFloat buttonWidth = screenWidth / 4;
 
-    // 目录按钮
-    self.catalogButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    self.catalogButton.frame = CGRectMake(15, 10, buttonWidth, 40);
-    [self.catalogButton setTitle:@"📚 目录" forState:UIControlStateNormal];
-    self.catalogButton.titleLabel.font = [UIFont boldSystemFontOfSize:16];
-    [self.catalogButton addTarget:self action:@selector(showCatalog) forControlEvents:UIControlEventTouchUpInside];
-    [self.toolbar addSubview:self.catalogButton];
+    // ⭐ 1. 目录按钮
+    UIButton *catalogBtn = [self createToolbarButton:@"☰\n目录" tag:1 action:@selector(showCatalog)];
+    catalogBtn.frame = CGRectMake(0, 0, buttonWidth, toolbarHeight);
+    [self.toolbar addSubview:catalogBtn];
 
-    // ⭐ 设置按钮
-    self.settingsButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    self.settingsButton.frame = CGRectMake(15 + buttonWidth + 15, 10, buttonWidth, 40);
-    [self.settingsButton setTitle:@"⚙️ 设置" forState:UIControlStateNormal];
-    self.settingsButton.titleLabel.font = [UIFont boldSystemFontOfSize:16];
-    [self.settingsButton addTarget:self action:@selector(showSettings) forControlEvents:UIControlEventTouchUpInside];
+    // ⭐ 2. 朗读按钮
+    UIButton *readAloudBtn = [self createToolbarButton:@"♫\n朗读" tag:2 action:@selector(showReadAloud)];
+    readAloudBtn.frame = CGRectMake(buttonWidth, 0, buttonWidth, toolbarHeight);
+    [self.toolbar addSubview:readAloudBtn];
+
+    // ⭐ 3. 界面按钮（设置）
+    self.settingsButton = [self createToolbarButton:@"Aa\n界面" tag:3 action:@selector(showSettings)];
+    self.settingsButton.frame = CGRectMake(buttonWidth * 2, 0, buttonWidth, toolbarHeight);
     [self.toolbar addSubview:self.settingsButton];
 
-    // 翻页模式按钮
-    self.pageModeButton = [UIButton buttonWithType:UIButtonTypeSystem];
-    self.pageModeButton.frame = CGRectMake(screenWidth - buttonWidth - 15, 10, buttonWidth, 40);
-    self.pageModeButton.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin;
-    [self updatePageModeButtonTitle];
-    self.pageModeButton.titleLabel.font = [UIFont boldSystemFontOfSize:16];
-    [self.pageModeButton addTarget:self action:@selector(togglePageMode) forControlEvents:UIControlEventTouchUpInside];
-    [self.toolbar addSubview:self.pageModeButton];
+    // ⭐ 4. 设置按钮（更多）
+    UIButton *moreBtn = [self createToolbarButton:@"⚙\n设置" tag:4 action:@selector(showMoreSettings)];
+    moreBtn.frame = CGRectMake(buttonWidth * 3, 0, buttonWidth, toolbarHeight);
+    [self.toolbar addSubview:moreBtn];
 
     [self.view addSubview:self.toolbar];
+}
+
+// ⭐ 创建工具栏按钮
+- (UIButton *)createToolbarButton:(NSString *)title tag:(NSInteger)tag action:(SEL)action {
+    UIButton *button = [UIButton buttonWithType:UIButtonTypeSystem];
+    button.tag = tag;
+    [button setTitle:title forState:UIControlStateNormal];
+    [button setTitleColor:[UIColor darkGrayColor] forState:UIControlStateNormal];
+    button.titleLabel.font = [UIFont systemFontOfSize:13];
+    button.titleLabel.numberOfLines = 2;
+    button.titleLabel.textAlignment = NSTextAlignmentCenter;
+    [button addTarget:self action:action forControlEvents:UIControlEventTouchUpInside];
+    return button;
 }
 
 - (void)setupTapGesture {
@@ -378,10 +451,6 @@ static const CGFloat kMaxFontSize = 30.0;
     [self.view addGestureRecognizer:tap];
 }
 
-- (void)updatePageModeButtonTitle {
-    NSString *title = self.pageTurnMode == PageTurnModeVertical ? @"📄 上下滑动" : @"📖 左右翻页";
-    [self.pageModeButton setTitle:title forState:UIControlStateNormal];
-}
 
 #pragma mark - Gesture Handling
 
@@ -391,6 +460,9 @@ static const CGFloat kMaxFontSize = 30.0;
 
 - (void)toggleToolbar {
     self.isToolbarVisible = !self.isToolbarVisible;
+
+    // ⭐ 同时切换导航栏和工具栏的显示状态
+    [self.navigationController setNavigationBarHidden:!self.isToolbarVisible animated:YES];
 
     CGFloat toolbarY = self.isToolbarVisible ? (self.view.bounds.size.height - 60) : self.view.bounds.size.height;
 
@@ -408,6 +480,67 @@ static const CGFloat kMaxFontSize = 30.0;
     ChapterListViewController *catalogVC = [[ChapterListViewController alloc] initWithBook:self.book];
     catalogVC.chapters = self.chapters;
     [self.navigationController pushViewController:catalogVC animated:YES];
+}
+
+// ⭐ 朗读功能
+- (void)showReadAloud {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"朗读功能"
+                                                                   message:@"功能开发中...\n\n将支持：\n- 自动朗读\n- 语速调节\n- 音色选择"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleDefault handler:nil];
+    [alert addAction:okAction];
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+// ⭐ 更多设置
+- (void)showMoreSettings {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"更多设置"
+                                                                   message:nil
+                                                            preferredStyle:UIAlertControllerStyleActionSheet];
+
+    // 翻页模式
+    NSString *pageModeTit = self.pageTurnMode == PageTurnModeVertical ? @"✓ 上下滑动" : @"✓ 左右翻页";
+    UIAlertAction *pageModeAction = [UIAlertAction actionWithTitle:[NSString stringWithFormat:@"翻页模式：%@", pageModeTit]
+                                                            style:UIAlertActionStyleDefault
+                                                          handler:^(UIAlertAction * _Nonnull action) {
+        [self togglePageMode];
+    }];
+    [alert addAction:pageModeAction];
+
+    // 亮度调节
+    UIAlertAction *brightnessAction = [UIAlertAction actionWithTitle:@"亮度调节" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        [self showBrightnessAlert];
+    }];
+    [alert addAction:brightnessAction];
+
+    // 取消
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil];
+    [alert addAction:cancelAction];
+
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+// ⭐ 亮度调节
+- (void)showBrightnessAlert {
+    UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"亮度调节"
+                                                                   message:@"\n\n\n"
+                                                            preferredStyle:UIAlertControllerStyleAlert];
+
+    UISlider *slider = [[UISlider alloc] initWithFrame:CGRectMake(20, 50, 230, 30)];
+    slider.minimumValue = 0.1;
+    slider.maximumValue = 1.0;
+    slider.value = [UIScreen mainScreen].brightness;
+    [slider addTarget:self action:@selector(brightnessChanged:) forControlEvents:UIControlEventValueChanged];
+    [alert.view addSubview:slider];
+
+    UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:nil];
+    [alert addAction:okAction];
+
+    [self presentViewController:alert animated:YES completion:nil];
+}
+
+- (void)brightnessChanged:(UISlider *)slider {
+    [[UIScreen mainScreen] setBrightness:slider.value];
 }
 
 #pragma mark - ⭐ 阅读设置
@@ -610,7 +743,6 @@ static const CGFloat kMaxFontSize = 30.0;
 - (void)togglePageMode {
     // 切换翻页模式
     self.pageTurnMode = (self.pageTurnMode == PageTurnModeVertical) ? PageTurnModeHorizontal : PageTurnModeVertical;
-    [self updatePageModeButtonTitle];
 
     // 重建UI
     [self rebuildUIForNewPageMode];

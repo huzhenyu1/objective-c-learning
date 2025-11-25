@@ -13,14 +13,16 @@ typedef NS_ENUM(NSInteger, BookType) {
     BookTypeFollow     // 关注书籍
 };
 
-@interface BookModel : NSObject
+@interface BookModel : NSObject <NSSecureCoding>
 
 @property (copy, nonatomic) NSString *bookId;          // 书籍 ID
 @property (copy, nonatomic) NSString *title;           // 书名
 @property (copy, nonatomic) NSString *author;          // 作者
 @property (copy, nonatomic) NSString *coverImageURL;   // 封面图片 URL
-@property (assign, nonatomic) NSInteger currentChapter; // 当前章节
+@property (assign, nonatomic) NSInteger currentChapter; // 当前章节索引
+@property (copy, nonatomic) NSString *currentChapterName;  // ⭐ 当前章节名称
 @property (assign, nonatomic) NSInteger totalChapters;  // 总章节数
+@property (copy, nonatomic) NSString *latestChapterName;   // ⭐ 最新章节名称
 @property (copy, nonatomic) NSString *lastReadTime;    // 最后阅读时间
 @property (assign, nonatomic) BookType bookType;       // 书籍类型
 @property (assign, nonatomic) CGFloat fileSize;        // 文件大小（MB）

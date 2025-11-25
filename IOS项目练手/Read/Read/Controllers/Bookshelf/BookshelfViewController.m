@@ -16,7 +16,10 @@
 #import "BookSourceManager.h"
 
 @interface BookshelfViewController () <UITableViewDataSource, UITableViewDelegate>
-@property (strong, nonatomic) UISegmentedControl *segmentedControl;
+@property (strong, nonatomic) UIScrollView *tabScrollView;  // ⭐ 可滚动的标签栏容器
+@property (strong, nonatomic) NSMutableArray<UIButton *> *tabButtons;  // ⭐ 标签按钮数组
+@property (assign, nonatomic) NSInteger selectedTabIndex;  // ⭐ 当前选中的标签索引
+@property (strong, nonatomic) UIView *tabIndicator;  // ⭐ 选中指示器（下划线）
 @property (strong, nonatomic) UITableView *tableView;
 @property (strong, nonatomic) NSMutableArray<BookModel *> *networkBooks;  // 网络书籍
 @property (strong, nonatomic) NSMutableArray<BookModel *> *localBooks;    // 本地书籍
@@ -32,13 +35,26 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
 
-    self.title = @"书架";
-    self.view.backgroundColor = [UIColor systemBackgroundColor];
+    // ⭐ 不设置 title，使用自定义标签栏
+    self.view.backgroundColor = [UIColor colorWithRed:0.95 green:0.95 blue:0.95 alpha:1.0];  // ⭐ 浅灰色背景
     self.needsReload = YES; // 初始化时需要加载
     self.loadingBookIds = [NSMutableSet set]; // 初始化加载中的书籍集合
 
+    // ⭐ 设置导航栏背景色（棕红色）
+    if (@available(iOS 13.0, *)) {
+        UINavigationBarAppearance *appearance = [[UINavigationBarAppearance alloc] init];
+        appearance.backgroundColor = [UIColor colorWithRed:0.58 green:0.36 blue:0.27 alpha:1.0];
+        appearance.titleTextAttributes = @{NSForegroundColorAttributeName: [UIColor whiteColor]};
+        self.navigationController.navigationBar.standardAppearance = appearance;
+        self.navigationController.navigationBar.scrollEdgeAppearance = appearance;
+    } else {
+        self.navigationController.navigationBar.barTintColor = [UIColor colorWithRed:0.58 green:0.36 blue:0.27 alpha:1.0];
+        self.navigationController.navigationBar.titleTextAttributes = @{NSForegroundColorAttributeName: [UIColor whiteColor]};
+    }
+    self.navigationController.navigationBar.tintColor = [UIColor whiteColor];  // 按钮颜色
+
     [self setupData];
-    [self setupSegmentedControl];
+    [self setupScrollableTabBar];  // ⭐ 改用可滚动标签栏
     [self setupTableView];
     [self setupNavigationBar];
 
@@ -76,21 +92,9 @@
     if (self.needsReload) {
         [self loadBooksFromManager];
 
-        // 刷新当前显示的列表
-        NSInteger selectedIndex = self.segmentedControl.selectedSegmentIndex;
-        switch (selectedIndex) {
-            case 0:
-                self.currentBooks = self.networkBooks;
-                break;
-            case 1:
-                self.currentBooks = self.localBooks;
-                break;
-            case 2:
-                self.currentBooks = self.followBooks;
-                break;
-        }
+        // ⭐ 刷新当前显示的列表（使用当前选中的标签）
+        [self switchToTabAtIndex:self.selectedTabIndex];
 
-        [self.tableView reloadData];
         self.needsReload = NO;
     }
 }
@@ -115,35 +119,144 @@
     self.followBooks = [NSMutableArray arrayWithArray:[[BookshelfManager sharedManager] getBooksWithType:BookTypeFollow]];
 }
 
-- (void)setupSegmentedControl {
-    // 创建分段控件
-    self.segmentedControl = [[UISegmentedControl alloc] initWithItems:@[@"网络未分组", @"本地", @"关注"]];
-    self.segmentedControl.selectedSegmentIndex = 0;
-    [self.segmentedControl addTarget:self
-                               action:@selector(segmentChanged:)
-                     forControlEvents:UIControlEventValueChanged];
+// ⭐ 创建可滚动的标签栏
+- (void)setupScrollableTabBar {
+    // 标签名称
+    NSArray *tabTitles = @[@"网络未分组", @"音频", @"本地", @"关注"];
 
-    // 设置样式
-    if (@available(iOS 13.0, *)) {
-        self.segmentedControl.selectedSegmentTintColor = [UIColor systemRedColor];
+    // ⭐ 创建 ScrollView 容器（作为导航栏的 titleView）
+    CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
+    self.tabScrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, screenWidth - 100, 44)];  // 预留左右按钮空间
+    self.tabScrollView.backgroundColor = [UIColor clearColor];  // 透明背景
+    self.tabScrollView.showsHorizontalScrollIndicator = NO;
+    self.tabScrollView.showsVerticalScrollIndicator = NO;
+
+    // 创建按钮数组
+    self.tabButtons = [NSMutableArray array];
+    CGFloat xOffset = 15;
+
+    for (NSInteger i = 0; i < tabTitles.count; i++) {
+        NSString *title = tabTitles[i];
+
+        // 创建按钮
+        UIButton *button = [UIButton buttonWithType:UIButtonTypeCustom];
+        button.tag = i;
+        [button setTitle:title forState:UIControlStateNormal];
+        [button addTarget:self action:@selector(tabButtonTapped:) forControlEvents:UIControlEventTouchUpInside];
+
+        // 设置字体
+        button.titleLabel.font = (i == 0) ? [UIFont boldSystemFontOfSize:16] : [UIFont systemFontOfSize:15];
+
+        // 设置颜色
+        UIColor *textColor = (i == 0) ? [UIColor whiteColor] : [UIColor colorWithWhite:1.0 alpha:0.6];
+        [button setTitleColor:textColor forState:UIControlStateNormal];
+
+        // 计算按钮宽度（根据文字自适应）
+        CGSize titleSize = [title sizeWithAttributes:@{NSFontAttributeName: button.titleLabel.font}];
+        CGFloat buttonWidth = titleSize.width + 20;  // 左右各留10px
+
+        button.frame = CGRectMake(xOffset, 0, buttonWidth, 44);
+        [self.tabScrollView addSubview:button];
+        [self.tabButtons addObject:button];
+
+        xOffset += buttonWidth + 10;  // 按钮间距10px
     }
-    [self.segmentedControl setTitleTextAttributes:@{NSForegroundColorAttributeName: [UIColor whiteColor]}
-                                        forState:UIControlStateSelected];
 
-    // 作为导航栏的 titleView
-    self.navigationItem.titleView = self.segmentedControl;
+    // 设置 ScrollView 的 contentSize
+    self.tabScrollView.contentSize = CGSizeMake(xOffset + 15, 44);
+
+    // 创建选中指示器（下划线）
+    UIButton *firstButton = self.tabButtons.firstObject;
+    self.tabIndicator = [[UIView alloc] initWithFrame:CGRectMake(firstButton.frame.origin.x, 40, firstButton.frame.size.width, 3)];
+    self.tabIndicator.backgroundColor = [UIColor whiteColor];
+    self.tabIndicator.layer.cornerRadius = 1.5;
+    [self.tabScrollView addSubview:self.tabIndicator];
+
+    // 初始化选中索引
+    self.selectedTabIndex = 0;
+
+    // ⭐ 将 ScrollView 设置为导航栏的 titleView
+    self.navigationItem.titleView = self.tabScrollView;
+}
+
+// ⭐ 标签按钮点击事件
+- (void)tabButtonTapped:(UIButton *)button {
+    NSInteger index = button.tag;
+
+    if (index == self.selectedTabIndex) {
+        return;  // 已经选中，不处理
+    }
+
+    // 更新选中状态
+    [self selectTabAtIndex:index animated:YES];
+
+    // 切换数据
+    [self switchToTabAtIndex:index];
+}
+
+// ⭐ 选中指定标签
+- (void)selectTabAtIndex:(NSInteger)index animated:(BOOL)animated {
+    // 更新旧按钮样式
+    UIButton *oldButton = self.tabButtons[self.selectedTabIndex];
+    oldButton.titleLabel.font = [UIFont systemFontOfSize:15];
+    [oldButton setTitleColor:[UIColor colorWithWhite:1.0 alpha:0.6] forState:UIControlStateNormal];
+
+    // 更新新按钮样式
+    UIButton *newButton = self.tabButtons[index];
+    newButton.titleLabel.font = [UIFont boldSystemFontOfSize:16];
+    [newButton setTitleColor:[UIColor whiteColor] forState:UIControlStateNormal];
+
+    // 移动指示器
+    if (animated) {
+        [UIView animateWithDuration:0.25 animations:^{
+            self.tabIndicator.frame = CGRectMake(newButton.frame.origin.x, 40, newButton.frame.size.width, 3);
+        }];
+    } else {
+        self.tabIndicator.frame = CGRectMake(newButton.frame.origin.x, 40, newButton.frame.size.width, 3);
+    }
+
+    // 滚动到可见位置
+    [self.tabScrollView scrollRectToVisible:CGRectInset(newButton.frame, -20, 0) animated:animated];
+
+    // 更新选中索引
+    self.selectedTabIndex = index;
+}
+
+// ⭐ 切换到指定标签的数据
+- (void)switchToTabAtIndex:(NSInteger)index {
+    switch (index) {
+        case 0:  // 网络未分组
+            self.currentBooks = self.networkBooks;
+            break;
+        case 1:  // 音频
+            self.currentBooks = self.localBooks;
+            break;
+        case 2:  // 本地
+            self.currentBooks = self.localBooks;
+            break;
+        case 3:  // 关注
+            self.currentBooks = self.followBooks;
+            break;
+        default:
+            break;
+    }
+
+    [self.tableView reloadData];
 }
 
 - (void)setupTableView {
+    // ⭐ yOffset 从导航栏下方开始（标签栏已集成到导航栏中）
     CGFloat yOffset = 0;  // 导航栏下方
     CGFloat screenHeight = self.view.bounds.size.height;
-    CGFloat tabBarHeight = 49;  // TabBar 高度
+    CGFloat tabBarHeight = 49;  // 底部 TabBar 高度
 
     self.tableView = [[UITableView alloc] initWithFrame:CGRectMake(0, yOffset, self.view.bounds.size.width, screenHeight - tabBarHeight)
                                                    style:UITableViewStylePlain];
     self.tableView.dataSource = self;
     self.tableView.delegate = self;
-    self.tableView.rowHeight = 160;  // Cell 高度
+    self.tableView.rowHeight = 135;  // ⭐ Cell 高度调整为 135（更紧凑）
+    self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;  // ⭐ 隐藏系统分隔线（使用自定义）
+    self.tableView.backgroundColor = [UIColor colorWithRed:0.95 green:0.95 blue:0.95 alpha:1.0];  // ⭐ 浅灰色背景
 
     // 注册 Cell
     [self.tableView registerClass:[BookCell class] forCellReuseIdentifier:@"BookCell"];
@@ -169,24 +282,6 @@
 
 #pragma mark - Actions
 
-- (void)segmentChanged:(UISegmentedControl *)segment {
-    // 切换显示的书籍列表
-    switch (segment.selectedSegmentIndex) {
-        case 0:  // 网络未分组
-            self.currentBooks = self.networkBooks;
-            break;
-        case 1:  // 本地
-            self.currentBooks = self.localBooks;
-            break;
-        case 2:  // 关注
-            self.currentBooks = self.followBooks;
-            break;
-        default:
-            break;
-    }
-
-    [self.tableView reloadData];
-}
 
 - (void)searchButtonTapped {
     // 跳转到搜索页面
@@ -330,15 +425,26 @@
         return;
     }
 
-    // 更新总章节数
+    // ⭐ 更新总章节数和章节名称
     book.totalChapters = chapters.count;
-    [[BookshelfManager sharedManager] updateBook:book];
 
     // 确定要打开的章节（恢复上次阅读进度）
     NSInteger chapterIndex = book.currentChapter;
     if (chapterIndex < 0 || chapterIndex >= chapters.count) {
         chapterIndex = 0;  // 默认第一章
     }
+
+    // ⭐ 更新当前章节名称
+    if (chapterIndex < chapters.count) {
+        book.currentChapterName = chapters[chapterIndex].chapterName;
+    }
+
+    // ⭐ 更新最新章节名称（最后一章）
+    if (chapters.count > 0) {
+        book.latestChapterName = chapters.lastObject.chapterName;
+    }
+
+    [[BookshelfManager sharedManager] updateBook:book];
 
     ChapterModel *startChapter = chapters[chapterIndex];
 
