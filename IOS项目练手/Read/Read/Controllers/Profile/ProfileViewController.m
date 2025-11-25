@@ -8,11 +8,17 @@
 #import "ProfileViewController.h"
 #import "BookContentManager.h"
 #import "BookSourceManager.h"
+#import "ReadingStatsManager.h"
 
 @interface ProfileViewController () <UITableViewDelegate, UITableViewDataSource>
 @property (strong, nonatomic) UITableView *tableView;
 @property (strong, nonatomic) NSArray<NSArray<NSDictionary *> *> *menuData;
 @property (copy, nonatomic) NSString *cacheSizeText;
+
+// ⭐ 阅读设置相关
+@property (assign, nonatomic) CGFloat currentFontSize;
+@property (copy, nonatomic) NSString *currentTheme;
+@property (assign, nonatomic) BOOL isNightMode;
 @end
 
 @implementation ProfileViewController
@@ -150,27 +156,217 @@
 #pragma mark - Actions
 
 - (void)showReadingStats {
-    [self showAlert:@"阅读统计" message:@"功能开发中...\n\n将显示：\n- 已读书籍数量\n- 总阅读时长\n- 本周阅读统计"];
+    ReadingStatsManager *manager = [ReadingStatsManager sharedManager];
+
+    NSInteger booksCount = [manager getReadBooksCount];
+    NSInteger chaptersCount = [manager getReadChaptersCount];
+    NSInteger todayWords = [manager getTodayReadingWords];
+    NSInteger todayDuration = [manager getTodayReadingDuration];
+    NSInteger weekDuration = [manager getThisWeekReadingDuration];
+
+    NSString *message = [NSString stringWithFormat:
+                        @"📚 已读书籍：%ld 本\n"
+                        @"📖 已读章节：%ld 章\n"
+                        @"📝 今日阅读：%@ 字\n"
+                        @"⏱ 今日时长：%@\n"
+                        @"📊 本周时长：%@",
+                        (long)booksCount,
+                        (long)chaptersCount,
+                        [self formatNumber:todayWords],
+                        [self formatDuration:todayDuration],
+                        [self formatDuration:weekDuration]];
+
+    [self showAlert:@"阅读统计" message:message];
 }
 
 - (void)showReadingTime {
-    [self showAlert:@"阅读时长" message:@"功能开发中...\n\n将显示：\n- 今日阅读时长\n- 本周阅读时长\n- 历史总时长"];
+    ReadingStatsManager *manager = [ReadingStatsManager sharedManager];
+
+    NSInteger todayDuration = [manager getTodayReadingDuration];
+    NSInteger weekDuration = [manager getThisWeekReadingDuration];
+    NSInteger totalDuration = [manager getTotalReadingDuration];
+
+    NSString *message = [NSString stringWithFormat:
+                        @"今日阅读时长\n%@\n\n"
+                        @"本周阅读时长\n%@\n\n"
+                        @"历史总时长\n%@\n\n"
+                        @"继续加油！ 📖",
+                        [self formatDuration:todayDuration],
+                        [self formatDuration:weekDuration],
+                        [self formatDuration:totalDuration]];
+
+    [self showAlert:@"阅读时长" message:message];
 }
 
 - (void)showReadingHistory {
-    [self showAlert:@"阅读记录" message:@"功能开发中...\n\n将显示最近阅读的书籍列表"];
+    ReadingStatsManager *manager = [ReadingStatsManager sharedManager];
+    NSArray<ReadingRecord *> *records = [manager getRecentReadingRecords];
+
+    if (records.count == 0) {
+        [self showAlert:@"阅读记录" message:@"暂无阅读记录\n\n开始阅读书籍后，这里会显示您的阅读历史"];
+        return;
+    }
+
+    NSMutableString *message = [NSMutableString stringWithString:@"最近阅读记录：\n\n"];
+
+    NSInteger count = MIN(10, records.count);
+    for (NSInteger i = 0; i < count; i++) {
+        ReadingRecord *record = records[i];
+        NSString *timeStr = [self formatRelativeTime:record.readTime];
+        [message appendFormat:@"📖 %@\n   %@ · %@\n\n",
+         record.bookTitle,
+         record.chapterName,
+         timeStr];
+    }
+
+    [self showAlert:@"阅读记录" message:message];
 }
 
 - (void)showFontSettings {
-    [self showAlert:@"字体设置" message:@"功能开发中...\n\n可调整：\n- 字体大小\n- 字体类型\n- 行间距"];
+    self.currentFontSize = [[NSUserDefaults standardUserDefaults] floatForKey:@"ReadingFontSize"];
+    if (self.currentFontSize <= 0) {
+        self.currentFontSize = 17.0;
+    }
+
+    UIAlertController *fontAlert = [UIAlertController alertControllerWithTitle:@"字体设置"
+                                                                       message:@"\n\n\n"
+                                                                preferredStyle:UIAlertControllerStyleAlert];
+
+    // 添加 UISlider
+    UISlider *fontSlider = [[UISlider alloc] initWithFrame:CGRectMake(20, 50, 230, 30)];
+    fontSlider.minimumValue = 12.0;
+    fontSlider.maximumValue = 30.0;
+    fontSlider.value = self.currentFontSize;
+    fontSlider.continuous = YES;
+    [fontSlider addTarget:self action:@selector(fontSizeChangedInProfile:) forControlEvents:UIControlEventValueChanged];
+    [fontAlert.view addSubview:fontSlider];
+
+    // 显示当前字号
+    UILabel *sizeLabel = [[UILabel alloc] initWithFrame:CGRectMake(20, 85, 230, 30)];
+    sizeLabel.text = [NSString stringWithFormat:@"%.0f pt", fontSlider.value];
+    sizeLabel.textAlignment = NSTextAlignmentCenter;
+    sizeLabel.tag = 999;
+    [fontAlert.view addSubview:sizeLabel];
+
+    UIAlertAction *confirmAction = [UIAlertAction actionWithTitle:@"确定" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        [[NSUserDefaults standardUserDefaults] setFloat:fontSlider.value forKey:@"ReadingFontSize"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+        [self showAlert:@"字体设置" message:[NSString stringWithFormat:@"字体大小已设置为 %.0f pt\n\n下次阅读时生效", fontSlider.value]];
+    }];
+
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil];
+
+    [fontAlert addAction:cancelAction];
+    [fontAlert addAction:confirmAction];
+
+    [self presentViewController:fontAlert animated:YES completion:nil];
+}
+
+- (void)fontSizeChangedInProfile:(UISlider *)slider {
+    UILabel *sizeLabel = (UILabel *)[slider.superview viewWithTag:999];
+    if (sizeLabel) {
+        sizeLabel.text = [NSString stringWithFormat:@"%.0f pt", slider.value];
+    }
 }
 
 - (void)showThemeSettings {
-    [self showAlert:@"主题设置" message:@"功能开发中...\n\n可选择：\n- 白天模式\n- 夜间模式\n- 护眼模式"];
+    UIAlertController *themeAlert = [UIAlertController alertControllerWithTitle:@"主题设置"
+                                                                         message:nil
+                                                                  preferredStyle:UIAlertControllerStyleActionSheet];
+
+    // 预设主题选项
+    NSArray *themes = @[
+        @{@"name": @"默认白色", @"value": @"white"},
+        @{@"name": @"护眼绿", @"value": @"green"},
+        @{@"name": @"羊皮纸", @"value": @"parchment"},
+        @{@"name": @"浅灰色", @"value": @"gray"}
+    ];
+
+    NSString *currentTheme = [[NSUserDefaults standardUserDefaults] stringForKey:@"ReadingBackgroundColor"] ?: @"white";
+
+    for (NSDictionary *theme in themes) {
+        BOOL isCurrentTheme = [currentTheme isEqualToString:theme[@"value"]];
+        NSString *title = isCurrentTheme ? [NSString stringWithFormat:@"✓ %@", theme[@"name"]] : theme[@"name"];
+
+        UIAlertAction *action = [UIAlertAction actionWithTitle:title style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+            [[NSUserDefaults standardUserDefaults] setObject:theme[@"value"] forKey:@"ReadingBackgroundColor"];
+            [[NSUserDefaults standardUserDefaults] synchronize];
+            [self showAlert:@"主题设置" message:[NSString stringWithFormat:@"主题已设置为「%@」\n\n下次阅读时生效", theme[@"name"]]];
+        }];
+        [themeAlert addAction:action];
+    }
+
+    // 夜间模式
+    BOOL isNightMode = [[NSUserDefaults standardUserDefaults] boolForKey:@"ReadingNightMode"];
+    NSString *nightModeTitle = isNightMode ? @"✓ 夜间模式" : @"夜间模式";
+    UIAlertAction *nightModeAction = [UIAlertAction actionWithTitle:nightModeTitle style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        BOOL newMode = !isNightMode;
+        [[NSUserDefaults standardUserDefaults] setBool:newMode forKey:@"ReadingNightMode"];
+        [[NSUserDefaults standardUserDefaults] synchronize];
+
+        NSString *msg = newMode ? @"夜间模式已开启 🌙\n\n下次阅读时生效" : @"夜间模式已关闭 ☀️\n\n下次阅读时生效";
+        [self showAlert:@"主题设置" message:msg];
+    }];
+    [themeAlert addAction:nightModeAction];
+
+    UIAlertAction *cancelAction = [UIAlertAction actionWithTitle:@"取消" style:UIAlertActionStyleCancel handler:nil];
+    [themeAlert addAction:cancelAction];
+
+    [self presentViewController:themeAlert animated:YES completion:nil];
 }
 
 - (void)showReadingSettings {
-    [self showAlert:@"阅读设置" message:@"功能开发中...\n\n可调整：\n- 翻页方式\n- 屏幕亮度\n- 音量键翻页"];
+    UIAlertController *settingsAlert = [UIAlertController alertControllerWithTitle:@"阅读设置"
+                                                                           message:@"可在阅读界面点击工具栏「⚙️ 设置」进行调整"
+                                                                    preferredStyle:UIAlertControllerStyleAlert];
+
+    UIAlertAction *okAction = [UIAlertAction actionWithTitle:@"知道了" style:UIAlertActionStyleDefault handler:nil];
+    [settingsAlert addAction:okAction];
+
+    [self presentViewController:settingsAlert animated:YES completion:nil];
+}
+
+#pragma mark - Helper Methods
+
+- (NSString *)formatDuration:(NSInteger)seconds {
+    if (seconds == 0) {
+        return @"0 分钟";
+    }
+
+    NSInteger hours = seconds / 3600;
+    NSInteger minutes = (seconds % 3600) / 60;
+
+    if (hours > 0) {
+        return [NSString stringWithFormat:@"%ld 小时 %ld 分钟", (long)hours, (long)minutes];
+    } else {
+        return [NSString stringWithFormat:@"%ld 分钟", (long)minutes];
+    }
+}
+
+- (NSString *)formatNumber:(NSInteger)number {
+    if (number >= 10000) {
+        return [NSString stringWithFormat:@"%.1f 万", number / 10000.0];
+    } else {
+        return [NSString stringWithFormat:@"%ld", (long)number];
+    }
+}
+
+- (NSString *)formatRelativeTime:(NSDate *)date {
+    NSTimeInterval interval = [[NSDate date] timeIntervalSinceDate:date];
+
+    if (interval < 60) {
+        return @"刚刚";
+    } else if (interval < 3600) {
+        return [NSString stringWithFormat:@"%ld 分钟前", (long)(interval / 60)];
+    } else if (interval < 86400) {
+        return [NSString stringWithFormat:@"%ld 小时前", (long)(interval / 3600)];
+    } else if (interval < 604800) {
+        return [NSString stringWithFormat:@"%ld 天前", (long)(interval / 86400)];
+    } else {
+        NSDateFormatter *formatter = [[NSDateFormatter alloc] init];
+        formatter.dateFormat = @"MM-dd";
+        return [formatter stringFromDate:date];
+    }
 }
 
 - (void)showBookSourceSettings {
