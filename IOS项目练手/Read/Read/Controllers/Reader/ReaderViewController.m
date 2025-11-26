@@ -6,19 +6,30 @@
 //
 
 #import "ReaderViewController.h"
-#import "BookContentService.h"
-#import "BookshelfManager.h"
+#import "ContentPageViewController.h"  // ⭐ 使用独立的文件
 #import "ChapterListViewController.h"
-#import "BookContentManager.h"
+#import "BookshelfManager.h"
 #import "ReadingStatsManager.h"
+#import "BookContentService.h"
+#import "BookContentManager.h"
+#import "ScreenAdapter.h"  // ⭐ 屏幕适配工具
+
+// ⭐ 引入新的管理器
+#import "ReadingContentManager.h"
+#import "ReadingProgressManager.h"
+#import "ReadingSettingsManager.h"
+#import "ReadingPaginationService.h"
+#import "ErrorHandler.h"
+#import "UIViewController+Alert.h"
+#import "AppConfig.h"
+
 #import <QuartzCore/QuartzCore.h>
 
-// ⭐ 内存管理常量
-static const NSInteger MAX_CACHE_COUNT = 10;              // 最多缓存10章内容
-static const NSInteger MAX_DISPLAYED_CHAPTERS = 5;        // UITextView 最多显示5章
-static const CGFloat FLOATING_TITLE_UPDATE_INTERVAL = 0.1; // 浮动标题更新间隔（秒）
+// ⭐ 常量定义
+static const NSInteger MAX_CACHE_COUNT = 10;
+static const CGFloat FLOATING_TITLE_UPDATE_INTERVAL = 0.1;
 
-// ⭐ 阅读设置常量
+// ⭐ 阅读设置常量（映射到 ReadingSettingsManager）
 static NSString * const kReadingFontSizeKey = @"ReadingFontSize";
 static NSString * const kReadingBackgroundColorKey = @"ReadingBackgroundColor";
 static NSString * const kReadingNightModeKey = @"ReadingNightMode";
@@ -26,175 +37,55 @@ static const CGFloat kDefaultFontSize = 17.0;
 static const CGFloat kMinFontSize = 12.0;
 static const CGFloat kMaxFontSize = 30.0;
 
-// 页面模型（用于横向翻页分页）
-@interface PageModel : NSObject
-@property (strong, nonatomic) ChapterModel *chapter;  // 所属章节
-@property (assign, nonatomic) NSInteger pageIndex;    // 页码（从0开始）
-@property (copy, nonatomic) NSString *pageContent;    // 页面内容
-@property (assign, nonatomic) NSInteger totalPages;   // 该章节总页数
-@end
-
-@implementation PageModel
-@end
-
-// 内容页面视图控制器
-@interface ContentPageViewController : UIViewController
-@property (strong, nonatomic) UIScrollView *scrollView;
-@property (strong, nonatomic) UITextView *contentTextView;  // ⭐ 改为 UITextView（性能更好）
-@property (strong, nonatomic) UILabel *chapterTitleLabel;
-@property (strong, nonatomic) UILabel *pageInfoLabel;  // 页码信息（横向模式）
-@property (strong, nonatomic) UIActivityIndicatorView *loadingIndicator;
-@property (strong, nonatomic) ChapterModel *chapter;
-@property (copy, nonatomic) NSString *content;
-@property (assign, nonatomic) BOOL scrollEnabled;  // 控制是否可以滚动
-@property (strong, nonatomic) PageModel *pageModel;  // 页面模型（横向模式）
-@property (assign, nonatomic) CGFloat currentContentHeight;  // ⭐ 缓存当前内容高度，避免重复计算
-@end
-
-@implementation ContentPageViewController
-
-- (void)viewDidLoad {
-    [super viewDidLoad];
-    self.view.backgroundColor = [UIColor systemBackgroundColor];
-    [self setupUI];
-}
-
-- (void)setupUI {
-    // ⭐ 章节标题（只在横向模式显示，竖向模式使用浮动标题）
-    CGFloat scrollY = 10;  // 默认从顶部开始
-
-    // 只在横向模式（scrollEnabled = NO）时显示固定标题
-    if (!self.scrollEnabled) {
-        self.chapterTitleLabel = [[UILabel alloc] initWithFrame:CGRectMake(15, 10, self.view.bounds.size.width - 30, 30)];
-        self.chapterTitleLabel.font = [UIFont boldSystemFontOfSize:18];
-        self.chapterTitleLabel.textColor = [UIColor labelColor];
-        self.chapterTitleLabel.textAlignment = NSTextAlignmentCenter;
-        if (self.pageModel) {
-            self.chapterTitleLabel.text = self.pageModel.chapter.chapterName;
-        } else if (self.chapter) {
-            self.chapterTitleLabel.text = self.chapter.chapterName;
-        }
-        [self.view addSubview:self.chapterTitleLabel];
-        scrollY = 50;  // 标题占用高度
-    }
-
-    // 滚动视图
-    CGFloat scrollHeight = self.view.bounds.size.height - scrollY - 30;  // 底部留30用于显示页码
-
-    self.scrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, scrollY, self.view.bounds.size.width, scrollHeight)];
-    self.scrollView.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-    self.scrollView.scrollEnabled = self.scrollEnabled;  // 根据模式控制是否可滚动
-    [self.view addSubview:self.scrollView];
-
-    self.contentTextView = [[UITextView alloc] initWithFrame:CGRectMake(15, 10, self.view.bounds.size.width - 30, 100)];
-    self.contentTextView.font = [UIFont systemFontOfSize:17];
-    self.contentTextView.textColor = [UIColor labelColor];
-    self.contentTextView.backgroundColor = [UIColor clearColor];
-    self.contentTextView.editable = NO;  // 不可编辑
-    self.contentTextView.selectable = YES;  // 可选择文本
-    self.contentTextView.scrollEnabled = NO;  // 禁止内部滚动，由外层 ScrollView 控制
-    self.contentTextView.textContainerInset = UIEdgeInsetsZero;  // 去除内边距
-    self.contentTextView.textContainer.lineFragmentPadding = 0;  // 去除行间距
-    [self.scrollView addSubview:self.contentTextView];
-
-    self.currentContentHeight = 0;  // 初始化高度
-
-    // 页码标签（横向模式显示）
-    if (!self.scrollEnabled && self.pageModel) {
-        self.pageInfoLabel = [[UILabel alloc] initWithFrame:CGRectMake(0, self.view.bounds.size.height - 30, self.view.bounds.size.width, 30)];
-        self.pageInfoLabel.font = [UIFont systemFontOfSize:14];
-        self.pageInfoLabel.textColor = [UIColor secondaryLabelColor];
-        self.pageInfoLabel.textAlignment = NSTextAlignmentCenter;
-        self.pageInfoLabel.text = [NSString stringWithFormat:@"%ld / %ld",
-                                   (long)(self.pageModel.pageIndex + 1),
-                                   (long)self.pageModel.totalPages];
-        [self.view addSubview:self.pageInfoLabel];
-    }
-
-    // 加载指示器
-    self.loadingIndicator = [[UIActivityIndicatorView alloc] initWithActivityIndicatorStyle:UIActivityIndicatorViewStyleLarge];
-    self.loadingIndicator.center = CGPointMake(self.view.bounds.size.width / 2, self.view.bounds.size.height / 2);
-    self.loadingIndicator.autoresizingMask = UIViewAutoresizingFlexibleLeftMargin |
-                                             UIViewAutoresizingFlexibleRightMargin |
-                                             UIViewAutoresizingFlexibleTopMargin |
-                                             UIViewAutoresizingFlexibleBottomMargin;
-    [self.view addSubview:self.loadingIndicator];
-
-    // 如果有内容就显示
-    if (self.pageModel) {
-        [self displayContent:self.pageModel.pageContent];
-    } else if (self.content) {
-        [self displayContent:self.content];
-    }
-}
-
-- (void)displayContent:(NSString *)content {
-    self.content = content;
-
-    if (!self.contentTextView) {
-        return;
-    }
-
-    // ⭐ 不再替换换行符，保持原文格式
-    self.contentTextView.text = content;
-
-    if (self.scrollEnabled) {
-        // 竖向模式：允许滚动，使用 UITextView 的自动布局（性能更好）
-        CGFloat width = self.view.bounds.size.width - 30;
-        CGSize size = [self.contentTextView sizeThatFits:CGSizeMake(width, CGFLOAT_MAX)];
-
-        self.contentTextView.frame = CGRectMake(15, 10, width, size.height);
-        self.scrollView.contentSize = CGSizeMake(self.view.bounds.size.width, size.height + 20);
-        self.currentContentHeight = size.height;  // 缓存高度
-    } else {
-        // 横向模式：禁止滚动，内容限制在一个页面内
-        CGFloat maxHeight = self.scrollView.bounds.size.height - 20;  // 预留上下间距
-        self.contentTextView.frame = CGRectMake(15, 10, self.view.bounds.size.width - 30, maxHeight);
-        self.scrollView.contentSize = self.scrollView.bounds.size;  // contentSize 等于 scrollView 大小，不可滚动
-    }
-
-    // 滚动到顶部
-    [self.scrollView setContentOffset:CGPointZero animated:NO];
-}
-
-@end
-
 // 主阅读器
 @interface ReaderViewController () <UIPageViewControllerDataSource, UIPageViewControllerDelegate, UIScrollViewDelegate>
 
-// 书籍信息
+// ⭐ 书籍信息
 @property (strong, nonatomic) BookModel *book;
 @property (strong, nonatomic) NSArray<ChapterModel *> *chapters;
 @property (strong, nonatomic) BookSource *bookSource;
 @property (strong, nonatomic) ChapterModel *currentChapter;
 
-// UI组件
+// ⭐ 新的管理器（替代原有分散的逻辑）
+@property (strong, nonatomic) ReadingContentManager *contentManager;      // 内容加载和缓存
+@property (strong, nonatomic) ReadingProgressManager *progressManager;    // 进度保存和恢复
+@property (strong, nonatomic) ReadingSettingsManager *settingsManager;    // 阅读设置
+@property (strong, nonatomic) ReadingPaginationService *paginationService; // 分页服务
+
+// ⭐ UI组件
 @property (strong, nonatomic) UIPageViewController *pageViewController;  // 左右翻页
 @property (strong, nonatomic) ContentPageViewController *currentPageVC;  // 当前页面
 @property (strong, nonatomic) UIView *toolbar;                           // 底部工具栏
 @property (strong, nonatomic) UIButton *catalogButton;                   // 目录按钮
 @property (strong, nonatomic) UIButton *pageModeButton;                  // 翻页模式按钮
-@property (strong, nonatomic) UIButton *settingsButton;                  // ⭐ 设置按钮
+@property (strong, nonatomic) UIButton *settingsButton;                  // 设置按钮
 
-// 状态
+// ⭐ 状态标志
+@property (assign, nonatomic) BOOL isUIInitialized;                      // UI是否已初始化完成
+@property (strong, nonatomic) UIButton *readAloudButton;                 // 朗读按钮
+@property (strong, nonatomic) UIButton *interfaceButton;                 // 界面按钮
+@property (strong, nonatomic) UILabel *floatingTitleLabel;               // 浮动标题
+
+// ⭐ 状态
 @property (assign, nonatomic) PageTurnMode pageTurnMode;                 // 翻页模式
 @property (assign, nonatomic) BOOL isToolbarVisible;                     // 工具栏是否可见
-@property (strong, nonatomic) NSMutableDictionary<NSNumber *, NSString *> *contentCache;  // 内容缓存
-@property (strong, nonatomic) NSMutableDictionary<NSNumber *, NSDate *> *cacheAccessTime;  // ⭐ 缓存访问时间（用于LRU）
-@property (strong, nonatomic) NSMutableSet<NSNumber *> *pendingRequests; // ⭐ 正在请求的章节（用于去重）
-@property (assign, nonatomic) BOOL isLoadingNextChapter;                 // 是否正在加载下一章（防止重复触发）
-@property (assign, nonatomic) NSTimeInterval lastTitleUpdateTime;        // ⭐ 上次更新标题的时间（用于节流）
-@property (assign, nonatomic) CGFloat lastSavedScrollOffset;             // ⭐ 上次保存的滚动位置
+@property (assign, nonatomic) BOOL isLoadingNextChapter;                 // 是否正在加载下一章
+@property (assign, nonatomic) NSTimeInterval lastTitleUpdateTime;        // 上次更新标题的时间
+@property (assign, nonatomic) CGFloat lastSavedScrollOffset;             // 上次保存的滚动位置
 
-// 竖向滚动相关
-@property (strong, nonatomic) NSMutableArray<ChapterModel *> *loadedChapters;  // 已加载到 ScrollView 的章节
-@property (strong, nonatomic) NSMutableDictionary<NSNumber *, NSNumber *> *chapterOffsets;  // 每章在 ScrollView 中的 Y 偏移 {chapterIndex: offsetY}
-@property (strong, nonatomic) UILabel *floatingTitleLabel;  // 浮动标题（动态显示当前章节）
+// ⭐ 垂直模式相关
+@property (strong, nonatomic) NSMutableArray<ChapterModel *> *loadedChapters;  // 已加载的章节
 
-// 分页相关（横向模式）
-@property (strong, nonatomic) NSMutableDictionary<NSNumber *, NSArray<PageModel *> *> *pagesCache;  // 章节分页缓存 {chapterIndex: [pages]}
-@property (strong, nonatomic) NSArray<PageModel *> *allPages;            // 所有页面的数组（当前加载的）
-@property (assign, nonatomic) NSInteger currentPageIndex;                // 当前页面索引（在allPages中）
+// ⭐ 横向模式相关
+@property (strong, nonatomic) NSMutableArray<PageModel *> *allPages;     // 所有页面（可变）
+@property (assign, nonatomic) NSInteger currentPageIndex;                // 当前页面索引
+
+// ⭐ 临时兼容性属性（用于快速修复编译错误，后续逐步迁移到新管理器）
+@property (strong, nonatomic) NSMutableDictionary<NSNumber *, NSString *> *contentCache;
+@property (strong, nonatomic) NSMutableDictionary<NSNumber *, NSDate *> *cacheAccessTime;
+@property (strong, nonatomic) NSMutableSet<NSNumber *> *pendingRequests;
+@property (strong, nonatomic) NSMutableDictionary<NSNumber *, NSNumber *> *chapterOffsets;
+@property (strong, nonatomic) NSMutableDictionary<NSNumber *, NSArray<PageModel *> *> *pagesCache;
 
 @end
 
@@ -212,19 +103,31 @@ static const CGFloat kMaxFontSize = 30.0;
         _bookSource = bookSource;
         _pageTurnMode = PageTurnModeVertical;  // 默认上下滑动
         _isToolbarVisible = NO;
-        _isLoadingNextChapter = NO;  // 初始化加载标志
-        _contentCache = [NSMutableDictionary dictionary];
-        _cacheAccessTime = [NSMutableDictionary dictionary];  // ⭐ LRU 缓存时间
-        _pendingRequests = [NSMutableSet set];  // ⭐ 请求去重
-        _pagesCache = [NSMutableDictionary dictionary];  // 分页缓存
+        _isLoadingNextChapter = NO;
+        _lastTitleUpdateTime = 0;
+        _lastSavedScrollOffset = 0;
+
+        // ⭐ 初始化新的管理器
+        _contentManager = [[ReadingContentManager alloc] initWithBook:book
+                                                              chapters:chapters
+                                                            bookSource:bookSource];
+        _progressManager = [[ReadingProgressManager alloc] initWithBook:book];
+        _settingsManager = [ReadingSettingsManager sharedManager];
+        _paginationService = [[ReadingPaginationService alloc] init];
+
+        // 垂直模式相关
+        _loadedChapters = [NSMutableArray array];
+
+        // 横向模式相关
         _allPages = @[];
         _currentPageIndex = 0;
-        _lastTitleUpdateTime = 0;  // ⭐ 标题更新时间
-        _lastSavedScrollOffset = 0;  // ⭐ 滚动位置
 
-        // 竖向滚动初始化
-        _loadedChapters = [NSMutableArray array];
+        // ⭐ 临时兼容性属性初始化（用于快速修复编译错误）
+        _contentCache = [NSMutableDictionary dictionary];
+        _cacheAccessTime = [NSMutableDictionary dictionary];
+        _pendingRequests = [NSMutableSet set];
         _chapterOffsets = [NSMutableDictionary dictionary];
+        _pagesCache = [NSMutableDictionary dictionary];
 
         // 隐藏底部 TabBar
         self.hidesBottomBarWhenPushed = YES;
@@ -247,6 +150,15 @@ static const CGFloat kMaxFontSize = 30.0;
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [self applyReadingSettings];
     });
+
+    // ⭐ 监听屏幕旋转
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleOrientationChange:)
+                                                 name:UIDeviceOrientationDidChangeNotification
+                                               object:nil];
+
+    // ⭐ 标记 UI 已初始化完成
+    self.isUIInitialized = YES;
 }
 
 #pragma mark - Navigation Bar
@@ -1217,8 +1129,7 @@ static const CGFloat kMaxFontSize = 30.0;
             // 移除自动触发逻辑，改为由 scrollViewDidScroll 根据滚动位置判断是否需要加载
             self.isLoadingNextChapter = NO;  // 标记加载完成
 
-            // ⭐ 滑动窗口：限制显示的章节数
-            [self trimDisplayedChaptersIfNeeded];
+
         });
     });
 }
@@ -1277,8 +1188,8 @@ static const CGFloat kMaxFontSize = 30.0;
         return cachedPages;
     }
 
-    // 计算一页能显示的内容
-    CGFloat pageWidth = self.view.bounds.size.width - 30;  // 左右各留15
+    // ⭐ 使用 ScreenAdapter 获取正确的内容宽度
+    CGFloat pageWidth = [ScreenAdapter readingContentWidth];
     CGFloat pageHeight = self.view.bounds.size.height - 50 - 30 - 30 - 60;  // 标题50 + 上边距30 + 页码30 + 工具栏60
 
     UIFont *font = [UIFont systemFontOfSize:17];
@@ -1542,9 +1453,7 @@ static const CGFloat kMaxFontSize = 30.0;
 
 #pragma mark - ⭐ 内存管理优化
 
-/**
- * LRU 缓存清理：限制 contentCache 最多保留 MAX_CACHE_COUNT 章
- */
+
 - (void)trimCacheIfNeeded {
     if (self.contentCache.count <= MAX_CACHE_COUNT) {
         return;
@@ -1566,84 +1475,10 @@ static const CGFloat kMaxFontSize = 30.0;
     }
 }
 
-/**
- * 滑动窗口清理：限制 UITextView 最多显示 MAX_DISPLAYED_CHAPTERS 章
- * 只在竖向滚动模式下使用
- */
-- (void)trimDisplayedChaptersIfNeeded {
-    if (self.pageTurnMode != PageTurnModeVertical) {
-        return;
-    }
 
-    if (self.loadedChapters.count <= MAX_DISPLAYED_CHAPTERS) {
-        return;
-    }
 
-    // 移除最早加载的章节
-    NSInteger removeCount = self.loadedChapters.count - MAX_DISPLAYED_CHAPTERS;
-    for (NSInteger i = 0; i < removeCount; i++) {
-        ChapterModel *oldestChapter = self.loadedChapters.firstObject;
-        [self.loadedChapters removeObjectAtIndex:0];
-        [self.chapterOffsets removeObjectForKey:@(oldestChapter.chapterIndex)];
-    }
 
-    // 重建 UITextView 内容（只保留最近的章节）
-    [self rebuildDisplayedContent];
-}
 
-/**
- * 重建显示内容（只保留 loadedChapters 中的章节）
- */
-- (void)rebuildDisplayedContent {
-    if (self.loadedChapters.count == 0) {
-        return;
-    }
-
-    NSMutableAttributedString *combinedContent = [[NSMutableAttributedString alloc] init];
-    CGFloat cumulativeHeight = 0;
-
-    // 重新计算所有章节的偏移量
-    [self.chapterOffsets removeAllObjects];
-
-    for (ChapterModel *chapter in self.loadedChapters) {
-        NSString *content = self.contentCache[@(chapter.chapterIndex)];
-        if (!content) {
-            continue;
-        }
-
-        // 记录章节偏移
-        self.chapterOffsets[@(chapter.chapterIndex)] = @(cumulativeHeight);
-
-        // 构建富文本
-        NSMutableAttributedString *chapterContent = [[NSMutableAttributedString alloc] initWithString:content];
-        [chapterContent addAttribute:NSFontAttributeName
-                              value:[UIFont systemFontOfSize:17]
-                              range:NSMakeRange(0, content.length)];
-
-        [combinedContent appendAttributedString:chapterContent];
-
-        // 计算新增内容的高度
-        CGFloat textWidth = self.currentPageVC.contentTextView.bounds.size.width;
-        if (textWidth <= 0) {
-            textWidth = [UIScreen mainScreen].bounds.size.width - 30;
-        }
-
-        CGSize constraintSize = CGSizeMake(textWidth, CGFLOAT_MAX);
-        CGRect boundingRect = [content boundingRectWithSize:constraintSize
-                                                    options:NSStringDrawingUsesLineFragmentOrigin
-                                                 attributes:@{NSFontAttributeName: [UIFont systemFontOfSize:17]}
-                                                    context:nil];
-        cumulativeHeight += ceil(boundingRect.size.height);
-    }
-
-    // 更新 UITextView
-    [CATransaction begin];
-    [CATransaction setDisableActions:YES];
-    self.currentPageVC.contentTextView.attributedText = combinedContent;
-    self.currentPageVC.scrollView.contentSize = CGSizeMake(self.currentPageVC.scrollView.bounds.size.width, cumulativeHeight + 100);
-    self.currentPageVC.currentContentHeight = cumulativeHeight;
-    [CATransaction commit];
-}
 
 /**
  * 更新缓存访问时间（用于 LRU）
@@ -1662,7 +1497,7 @@ static const CGFloat kMaxFontSize = 30.0;
 
     ChapterModel *chapterModel = self.chapters[chapterIndex];
 
-    // 创建 Chapter 对象
+    // 创建 Chapter 对象（BookContentManager 使用的模型）
     Chapter *chapter = [[Chapter alloc] init];
     chapter.bookId = self.book.bookUrl;  // 使用 bookUrl 作为唯一标识
     chapter.chapterId = [@(chapterIndex) stringValue];
@@ -1687,7 +1522,232 @@ static const CGFloat kMaxFontSize = 30.0;
     return chapter.content;
 }
 
+#pragma mark - ⭐ 横竖屏适配
+
+/**
+ * 处理屏幕旋转
+ */
+- (void)handleOrientationChange:(NSNotification *)notification {
+    // ⭐ 检查 UI 是否已初始化
+    if (!self.isUIInitialized) {
+        return;  // UI 还没初始化完成，不处理旋转
+    }
+
+    // ⭐ 延迟处理，等待旋转动画完成和 view bounds 更新
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self updateLayoutForCurrentOrientation];
+    });
+}
+
+/**
+ * viewWillTransitionToSize - 系统旋转时调用
+ * 这个方法在 bounds 更新之前调用，可以提前准备
+ */
+- (void)viewWillTransitionToSize:(CGSize)size withTransitionCoordinator:(id<UIViewControllerTransitionCoordinator>)coordinator {
+    [super viewWillTransitionToSize:size withTransitionCoordinator:coordinator];
+
+    // ⭐ 检查 UI 是否已初始化
+    if (!self.isUIInitialized) {
+        return;  // UI 还没初始化完成，不处理旋转
+    }
+
+    // ⭐ 在转场完成后更新布局
+    [coordinator animateAlongsideTransition:nil completion:^(id<UIViewControllerTransitionCoordinatorContext> context) {
+        // 转场动画完成后，bounds 已经更新
+        [self updateLayoutForCurrentOrientation];
+    }];
+}
+
+/**
+ * 更新布局以适应当前方向
+ */
+- (void)updateLayoutForCurrentOrientation {
+    if (self.pageTurnMode == PageTurnModeVertical) {
+        [self updateVerticalModeLayout];
+    } else {
+        [self updateHorizontalModeLayout];
+    }
+
+    // 更新工具栏
+    [self updateToolbarLayout];
+
+    // 更新浮动标题
+    [self updateFloatingTitleLayout];
+}
+
+/**
+ * 更新垂直模式布局
+ */
+- (void)updateVerticalModeLayout {
+    if (!self.currentPageVC) return;
+
+    // ⭐ 保存当前滚动位置（百分比）
+    UIScrollView *scrollView = self.currentPageVC.scrollView;
+    CGFloat oldContentHeight = scrollView.contentSize.height;
+    CGFloat oldOffset = scrollView.contentOffset.y;
+    CGFloat scrollPercentage = oldContentHeight > 0 ? oldOffset / oldContentHeight : 0;
+
+    // ⭐ 更新 currentPageVC 的 view frame
+    self.currentPageVC.view.frame = self.view.bounds;
+
+    // ⭐ 重新计算内容宽度
+    CGFloat contentWidth = [ScreenAdapter readingContentWidth];
+    CGFloat screenWidth = [ScreenAdapter screenWidth];
+    CGFloat screenHeight = [ScreenAdapter screenHeight];
+
+    // iPad 横屏：内容居中
+    CGFloat leftMargin = [ScreenAdapter horizontalPadding];
+    if (ScreenAdapter.isIPad && ScreenAdapter.isLandscape) {
+        leftMargin = (screenWidth - contentWidth) / 2;
+    }
+
+    // ⭐ 更新 scrollView frame
+    CGFloat scrollY = self.floatingTitleLabel ? 44 : 0;
+    CGFloat toolbarHeight = self.isToolbarVisible ? 60 : 0;
+    scrollView.frame = CGRectMake(0, scrollY, screenWidth, screenHeight - scrollY - toolbarHeight);
+
+    // ⭐ 更新 textView 布局和内容
+    UITextView *textView = self.currentPageVC.contentTextView;
+    if (textView && textView.text.length > 0) {
+        // 重新计算文本高度
+        NSAttributedString *attributedText = textView.attributedText;
+        CGSize textSize = [attributedText boundingRectWithSize:CGSizeMake(contentWidth, CGFLOAT_MAX)
+                                                        options:NSStringDrawingUsesLineFragmentOrigin
+                                                        context:nil].size;
+
+        // 更新 textView frame
+        textView.frame = CGRectMake(leftMargin, 10, contentWidth, textSize.height);
+
+        // 更新 scrollView contentSize
+        scrollView.contentSize = CGSizeMake(screenWidth, textSize.height + 20);
+
+        // ⭐ 恢复滚动位置（按百分比）
+        CGFloat newContentHeight = scrollView.contentSize.height;
+        CGFloat newOffset = newContentHeight * scrollPercentage;
+        [scrollView setContentOffset:CGPointMake(0, newOffset) animated:NO];
+    }
+}
+
+/**
+ * 更新横向模式布局（需要重新分页）
+ */
+- (void)updateHorizontalModeLayout {
+    // ⭐ 检查是否在横向模式
+    if (!self.pageViewController) {
+        return;  // 不在横向模式，无需处理
+    }
+
+    // ⭐ 保存当前页面索引和旧的总页数
+    NSInteger oldPageIndex = self.currentPageIndex;
+    NSInteger oldPagesCount = self.allPages.count;
+
+    // 清除旧的分页缓存
+    [self.pagesCache removeAllObjects];
+    [self.allPages removeAllObjects];
+
+    // ⭐ 重新分页（使用新的屏幕尺寸）
+    if (!self.currentChapter) {
+        return;  // 没有当前章节，无法分页
+    }
+
+    [self buildAllPagesFromChapter:self.currentChapter];
+
+    // ⭐ 尝试恢复到相近的页面
+    if (self.allPages.count == 0) {
+        return;  // 分页失败，无法设置页面
+    }
+
+    // 计算新的页面索引（按比例）
+    NSInteger newPageIndex = 0;
+    if (oldPageIndex > 0 && oldPagesCount > 0) {
+        // 按照之前的进度比例来定位
+        CGFloat progress = (CGFloat)oldPageIndex / (CGFloat)oldPagesCount;
+        newPageIndex = (NSInteger)(progress * self.allPages.count);
+        newPageIndex = MAX(0, MIN(newPageIndex, self.allPages.count - 1));  // 确保在有效范围内
+    }
+
+    self.currentPageIndex = newPageIndex;
+
+    // 创建新页面
+    ContentPageViewController *newPageVC = [[ContentPageViewController alloc] init];
+    if (!newPageVC) {
+        return;  // 创建失败
+    }
+
+    newPageVC.scrollEnabled = NO;
+    newPageVC.pageModel = self.allPages[newPageIndex];
+
+    // ⭐ 检查 pageModel 是否有效
+    if (!newPageVC.pageModel) {
+        return;  // pageModel 无效，不能设置
+    }
+
+    self.currentPageVC = newPageVC;
+
+    // ⭐ 确保 newPageVC 不为 nil 才设置
+    [self.pageViewController setViewControllers:@[newPageVC]
+                                      direction:UIPageViewControllerNavigationDirectionForward
+                                       animated:NO
+                                     completion:nil];
+}
+
+/**
+ * 更新工具栏布局
+ */
+- (void)updateToolbarLayout {
+    if (!self.toolbar) return;
+
+    CGFloat screenWidth = [ScreenAdapter screenWidth];
+    CGFloat toolbarHeight = 60;
+
+    self.toolbar.frame = CGRectMake(0,
+                                    [ScreenAdapter screenHeight] - toolbarHeight,
+                                    screenWidth,
+                                    toolbarHeight);
+
+    // ⭐ 重新布局工具栏按钮（安全地创建数组，过滤 nil）
+    CGFloat buttonWidth = ScreenAdapter.isIPad ? 80 : 60;
+    CGFloat spacing = (screenWidth - 4 * buttonWidth) / 5;
+    CGFloat y = 10;
+
+    // ⭐ 手动检查每个按钮，避免 nil 导致崩溃
+    NSMutableArray *buttons = [NSMutableArray array];
+    if (self.catalogButton) [buttons addObject:self.catalogButton];
+    if (self.readAloudButton) [buttons addObject:self.readAloudButton];
+    if (self.interfaceButton) [buttons addObject:self.interfaceButton];
+    if (self.settingsButton) [buttons addObject:self.settingsButton];
+
+    for (NSInteger i = 0; i < buttons.count; i++) {
+        UIButton *button = buttons[i];
+        button.frame = CGRectMake(spacing + i * (buttonWidth + spacing), y, buttonWidth, 40);
+    }
+}
+
+/**
+ * 更新浮动标题布局
+ */
+- (void)updateFloatingTitleLayout {
+    if (!self.floatingTitleLabel) return;
+
+    CGFloat contentWidth = [ScreenAdapter readingContentWidth];
+    CGFloat screenWidth = [ScreenAdapter screenWidth];
+    CGFloat leftMargin = [ScreenAdapter horizontalPadding];
+
+    // iPad 横屏：标题与内容同宽且居中
+    if (ScreenAdapter.isIPad && ScreenAdapter.isLandscape) {
+        leftMargin = (screenWidth - contentWidth) / 2;
+    }
+
+    self.floatingTitleLabel.frame = CGRectMake(leftMargin,
+                                               [ScreenAdapter safeAreaInsets].top,
+                                               contentWidth,
+                                               44);
+}
+
 - (void)dealloc {
+    // 移除通知监听
+    [[NSNotificationCenter defaultCenter] removeObserver:self];
+
     // 保存当前滚动位置
     if (self.pageTurnMode == PageTurnModeVertical && self.currentPageVC) {
         CGFloat currentOffset = self.currentPageVC.scrollView.contentOffset.y;

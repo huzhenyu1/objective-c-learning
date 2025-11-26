@@ -6,6 +6,7 @@
 //
 
 #import "BookCell.h"
+#import "ScreenAdapter.h"
 
 @implementation BookCell
 
@@ -22,43 +23,53 @@
     self.backgroundColor = [UIColor whiteColor];
     self.contentView.backgroundColor = [UIColor whiteColor];
 
-    // ⭐ 封面图片（左侧）- 缩小高度
-    self.coverImageView = [[UIImageView alloc] initWithFrame:CGRectMake(15, 10, 85, 115)];
+    // ⭐ 获取适配尺寸
+    CGSize coverSize = [ScreenAdapter bookCoverSize];
+    CGFloat padding = [ScreenAdapter horizontalPadding];
+
+    // ⭐ 封面图片（左侧）
+    self.coverImageView = [[UIImageView alloc] init];
+    self.coverImageView.translatesAutoresizingMaskIntoConstraints = NO;
     self.coverImageView.contentMode = UIViewContentModeScaleAspectFill;
     self.coverImageView.clipsToBounds = YES;
-    self.coverImageView.layer.cornerRadius = 4;  // 小圆角
+    self.coverImageView.layer.cornerRadius = 4;
     self.coverImageView.backgroundColor = [UIColor systemGray5Color];
     [self.contentView addSubview:self.coverImageView];
 
-    // ⭐ 书名（右上）- 加粗，最多显示1行
-    self.titleLabel = [[UILabel alloc] initWithFrame:CGRectMake(110, 15, 200, 22)];
+    // ⭐ 书名（右上）
+    self.titleLabel = [[UILabel alloc] init];
+    self.titleLabel.translatesAutoresizingMaskIntoConstraints = NO;
     self.titleLabel.font = [UIFont boldSystemFontOfSize:16];
     self.titleLabel.numberOfLines = 1;
     self.titleLabel.textColor = [UIColor blackColor];
     [self.contentView addSubview:self.titleLabel];
 
-    // ⭐ 作者信息（书名下方）
-    self.authorLabel = [[UILabel alloc] initWithFrame:CGRectMake(110, 42, 200, 18)];
+    // ⭐ 作者信息
+    self.authorLabel = [[UILabel alloc] init];
+    self.authorLabel.translatesAutoresizingMaskIntoConstraints = NO;
     self.authorLabel.font = [UIFont systemFontOfSize:13];
     self.authorLabel.textColor = [UIColor grayColor];
     [self.contentView addSubview:self.authorLabel];
 
-    // ⭐ 当前章节信息（完整章节名）
-    self.chapterLabel = [[UILabel alloc] initWithFrame:CGRectMake(110, 65, 200, 18)];
+    // ⭐ 当前章节信息
+    self.chapterLabel = [[UILabel alloc] init];
+    self.chapterLabel.translatesAutoresizingMaskIntoConstraints = NO;
     self.chapterLabel.font = [UIFont systemFontOfSize:12];
     self.chapterLabel.textColor = [UIColor grayColor];
     self.chapterLabel.numberOfLines = 1;
     [self.contentView addSubview:self.chapterLabel];
 
-    // ⭐ 最新章节信息（完整章节名）
-    self.statusLabel = [[UILabel alloc] initWithFrame:CGRectMake(110, 88, 200, 18)];
+    // ⭐ 最新章节信息
+    self.statusLabel = [[UILabel alloc] init];
+    self.statusLabel.translatesAutoresizingMaskIntoConstraints = NO;
     self.statusLabel.font = [UIFont systemFontOfSize:12];
     self.statusLabel.textColor = [UIColor grayColor];
     self.statusLabel.numberOfLines = 1;
     [self.contentView addSubview:self.statusLabel];
 
-    // 角标（右上角，显示未读数量）- 圆形红底白字
-    self.badgeLabel = [[UILabel alloc] initWithFrame:CGRectMake(320, 20, 50, 24)];
+    // 角标（右上角）
+    self.badgeLabel = [[UILabel alloc] init];
+    self.badgeLabel.translatesAutoresizingMaskIntoConstraints = NO;
     self.badgeLabel.font = [UIFont boldSystemFontOfSize:13];
     self.badgeLabel.textAlignment = NSTextAlignmentCenter;
     self.badgeLabel.textColor = [UIColor whiteColor];
@@ -67,11 +78,62 @@
     self.badgeLabel.clipsToBounds = YES;
     [self.contentView addSubview:self.badgeLabel];
 
-    // ⭐ 添加底部分隔线（调整位置）
-    UIView *separatorLine = [[UIView alloc] initWithFrame:CGRectMake(15, 134, [UIScreen mainScreen].bounds.size.width - 15, 0.5)];
+    // 底部分隔线
+    UIView *separatorLine = [[UIView alloc] init];
+    separatorLine.translatesAutoresizingMaskIntoConstraints = NO;
     separatorLine.backgroundColor = [[UIColor grayColor] colorWithAlphaComponent:0.2];
-    separatorLine.tag = 888;  // 标记以便后续更新
+    separatorLine.tag = 888;
     [self.contentView addSubview:separatorLine];
+    
+    // ⭐ AutoLayout 约束
+    [self setupConstraints:coverSize padding:padding separatorLine:separatorLine];
+}
+
+// ⭐ 设置 AutoLayout 约束（支持横竖屏和iPad）
+- (void)setupConstraints:(CGSize)coverSize padding:(CGFloat)padding separatorLine:(UIView *)separatorLine {
+    [NSLayoutConstraint activateConstraints:@[
+        // 封面图片约束
+        [self.coverImageView.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:padding],
+        [self.coverImageView.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:10],
+        [self.coverImageView.widthAnchor constraintEqualToConstant:coverSize.width],
+        [self.coverImageView.heightAnchor constraintEqualToConstant:coverSize.height],
+        
+        // 书名约束
+        [self.titleLabel.leadingAnchor constraintEqualToAnchor:self.coverImageView.trailingAnchor constant:10],
+        [self.titleLabel.trailingAnchor constraintEqualToAnchor:self.badgeLabel.leadingAnchor constant:-10],
+        [self.titleLabel.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:15],
+        [self.titleLabel.heightAnchor constraintEqualToConstant:22],
+        
+        // 作者约束
+        [self.authorLabel.leadingAnchor constraintEqualToAnchor:self.titleLabel.leadingAnchor],
+        [self.authorLabel.trailingAnchor constraintEqualToAnchor:self.titleLabel.trailingAnchor],
+        [self.authorLabel.topAnchor constraintEqualToAnchor:self.titleLabel.bottomAnchor constant:7],
+        [self.authorLabel.heightAnchor constraintEqualToConstant:18],
+        
+        // 当前章节约束
+        [self.chapterLabel.leadingAnchor constraintEqualToAnchor:self.titleLabel.leadingAnchor],
+        [self.chapterLabel.trailingAnchor constraintEqualToAnchor:self.titleLabel.trailingAnchor],
+        [self.chapterLabel.topAnchor constraintEqualToAnchor:self.authorLabel.bottomAnchor constant:7],
+        [self.chapterLabel.heightAnchor constraintEqualToConstant:18],
+        
+        // 最新章节约束
+        [self.statusLabel.leadingAnchor constraintEqualToAnchor:self.titleLabel.leadingAnchor],
+        [self.statusLabel.trailingAnchor constraintEqualToAnchor:self.titleLabel.trailingAnchor],
+        [self.statusLabel.topAnchor constraintEqualToAnchor:self.chapterLabel.bottomAnchor constant:7],
+        [self.statusLabel.heightAnchor constraintEqualToConstant:18],
+        
+        // 角标约束
+        [self.badgeLabel.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor constant:-padding],
+        [self.badgeLabel.topAnchor constraintEqualToAnchor:self.contentView.topAnchor constant:20],
+        [self.badgeLabel.widthAnchor constraintGreaterThanOrEqualToConstant:24],
+        [self.badgeLabel.heightAnchor constraintEqualToConstant:24],
+        
+        // 分隔线约束
+        [separatorLine.leadingAnchor constraintEqualToAnchor:self.contentView.leadingAnchor constant:padding],
+        [separatorLine.trailingAnchor constraintEqualToAnchor:self.contentView.trailingAnchor],
+        [separatorLine.bottomAnchor constraintEqualToAnchor:self.contentView.bottomAnchor],
+        [separatorLine.heightAnchor constraintEqualToConstant:0.5]
+    ]];
 }
 
 - (void)configureWithBook:(BookModel *)book {
@@ -137,20 +199,9 @@
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-
-    // ⭐ 更新布局（适配不同屏幕，调整后的位置）
-    CGFloat screenWidth = self.contentView.bounds.size.width;
-    self.titleLabel.frame = CGRectMake(110, 15, screenWidth - 180, 22);
-    self.authorLabel.frame = CGRectMake(110, 42, screenWidth - 180, 18);
-    self.chapterLabel.frame = CGRectMake(110, 65, screenWidth - 180, 18);
-    self.statusLabel.frame = CGRectMake(110, 88, screenWidth - 180, 18);
-    self.badgeLabel.frame = CGRectMake(screenWidth - 70, 15, 50, 24);
-
-    // ⭐ 更新分隔线宽度和位置
-    UIView *separatorLine = [self.contentView viewWithTag:888];
-    if (separatorLine) {
-        separatorLine.frame = CGRectMake(15, 134, screenWidth - 15, 0.5);
-    }
+    
+    // ⭐ 使用 AutoLayout 后不需要手动调整 Frame
+    // AutoLayout 会自动处理横竖屏和不同设备的布局
 }
 
 @end

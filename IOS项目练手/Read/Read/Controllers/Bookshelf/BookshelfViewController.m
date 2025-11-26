@@ -14,6 +14,7 @@
 #import "ReaderViewController.h"
 #import "BookContentService.h"
 #import "BookSourceManager.h"
+#import "ScreenAdapter.h"  // ⭐ 屏幕适配工具
 
 @interface BookshelfViewController () <UITableViewDataSource, UITableViewDelegate>
 @property (strong, nonatomic) UIScrollView *tabScrollView;  // ⭐ 可滚动的标签栏容器
@@ -69,6 +70,12 @@
                                              selector:@selector(onReadProgressUpdated:)
                                                  name:@"BookReadProgressUpdated"
                                                object:nil];
+    
+    // ⭐ 监听屏幕旋转
+    [[NSNotificationCenter defaultCenter] addObserver:self
+                                             selector:@selector(handleOrientationChange:)
+                                                 name:UIDeviceOrientationDidChangeNotification
+                                               object:nil];
 }
 
 - (void)dealloc {
@@ -83,6 +90,45 @@
 - (void)onReadProgressUpdated:(NSNotification *)notification {
     // 标记需要重新加载
     self.needsReload = YES;
+}
+
+// ⭐ 处理屏幕旋转
+- (void)handleOrientationChange:(NSNotification *)notification {
+    // 重新布局标签栏
+    [self updateTabBarLayout];
+    
+    // 重新加载 TableView（调整 Cell 高度）
+    self.tableView.rowHeight = [ScreenAdapter bookCellHeight];
+    [self.tableView reloadData];
+}
+
+// ⭐ 更新标签栏布局（适配屏幕宽度）
+- (void)updateTabBarLayout {
+    if (!self.tabScrollView || self.tabButtons.count == 0) {
+        return;
+    }
+    
+    CGFloat screenWidth = [UIScreen mainScreen].bounds.size.width;
+    CGFloat xOffset = [ScreenAdapter horizontalPadding];
+    
+    // 重新计算按钮位置
+    for (NSInteger i = 0; i < self.tabButtons.count; i++) {
+        UIButton *button = self.tabButtons[i];
+        CGSize textSize = [button.titleLabel.text sizeWithAttributes:@{NSFontAttributeName: button.titleLabel.font}];
+        CGFloat buttonWidth = textSize.width + 20;
+        
+        button.frame = CGRectMake(xOffset, 0, buttonWidth, 44);
+        xOffset += buttonWidth + 15;
+    }
+    
+    // 更新 contentSize
+    self.tabScrollView.contentSize = CGSizeMake(xOffset, 44);
+    
+    // 更新指示器位置
+    if (self.selectedTabIndex < self.tabButtons.count) {
+        UIButton *selectedButton = self.tabButtons[self.selectedTabIndex];
+        self.tabIndicator.frame = CGRectMake(selectedButton.frame.origin.x, 40, selectedButton.frame.size.width, 3);
+    }
 }
 
 - (void)viewWillAppear:(BOOL)animated {
@@ -245,23 +291,27 @@
 }
 
 - (void)setupTableView {
-    // ⭐ yOffset 从导航栏下方开始（标签栏已集成到导航栏中）
-    CGFloat yOffset = 0;  // 导航栏下方
-    CGFloat screenHeight = self.view.bounds.size.height;
-    CGFloat tabBarHeight = 49;  // 底部 TabBar 高度
-
-    self.tableView = [[UITableView alloc] initWithFrame:CGRectMake(0, yOffset, self.view.bounds.size.width, screenHeight - tabBarHeight)
-                                                   style:UITableViewStylePlain];
+    // ⭐ 使用 AutoLayout 支持横竖屏
+    self.tableView = [[UITableView alloc] initWithFrame:CGRectZero style:UITableViewStylePlain];
+    self.tableView.translatesAutoresizingMaskIntoConstraints = NO;
     self.tableView.dataSource = self;
     self.tableView.delegate = self;
-    self.tableView.rowHeight = 135;  // ⭐ Cell 高度调整为 135（更紧凑）
-    self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;  // ⭐ 隐藏系统分隔线（使用自定义）
-    self.tableView.backgroundColor = [UIColor colorWithRed:0.95 green:0.95 blue:0.95 alpha:1.0];  // ⭐ 浅灰色背景
+    self.tableView.rowHeight = [ScreenAdapter bookCellHeight];  // ⭐ 根据设备自适应
+    self.tableView.separatorStyle = UITableViewCellSeparatorStyleNone;
+    self.tableView.backgroundColor = [UIColor colorWithRed:0.95 green:0.95 blue:0.95 alpha:1.0];
 
     // 注册 Cell
     [self.tableView registerClass:[BookCell class] forCellReuseIdentifier:@"BookCell"];
 
     [self.view addSubview:self.tableView];
+    
+    // ⭐ AutoLayout 约束
+    [NSLayoutConstraint activateConstraints:@[
+        [self.tableView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor],
+        [self.tableView.leadingAnchor constraintEqualToAnchor:self.view.leadingAnchor],
+        [self.tableView.trailingAnchor constraintEqualToAnchor:self.view.trailingAnchor],
+        [self.tableView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor]
+    ]];
 }
 
 - (void)setupNavigationBar {

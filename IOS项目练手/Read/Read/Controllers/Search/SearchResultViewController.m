@@ -10,6 +10,7 @@
 #import "BookSourceManager.h"
 #import "BookshelfManager.h"
 #import "BookModel.h"
+#import "ScreenAdapter.h"  // ⭐ 屏幕适配工具
 
 @interface SearchResultViewController () <UITableViewDataSource, UITableViewDelegate, UISearchBarDelegate>
 @property (strong, nonatomic) UISearchBar *searchBar;

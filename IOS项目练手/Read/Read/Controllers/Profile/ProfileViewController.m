@@ -9,6 +9,7 @@
 #import "BookContentManager.h"
 #import "BookSourceManager.h"
 #import "ReadingStatsManager.h"
+#import "ScreenAdapter.h"  // ⭐ 屏幕适配工具
 
 @interface ProfileViewController () <UITableViewDelegate, UITableViewDataSource>
 @property (strong, nonatomic) UITableView *tableView;
