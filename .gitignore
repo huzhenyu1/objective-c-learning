@@ -22,10 +22,14 @@ MAC- OC语法学习/examples/calculator/calculator
 MAC- OC语法学习/examples/performance_test/performance_test
 
 # Xcode
-*.xcodeproj
-*.xcworkspace
+# *.xcodeproj  # 注释掉，保留项目文件
+# *.xcworkspace  # 注释掉，保留工作空间文件
 build/
 DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcscmblueprint
+*.xccheckout
 
 # macOS
 .DS_Store
