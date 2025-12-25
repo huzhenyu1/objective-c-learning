@@ -16,7 +16,7 @@ struct ReadSwiftApp: App {
 
     var body: some Scene {
         WindowGroup {
-            BookshelfView()
+            MainTabView()
         }
     }
 

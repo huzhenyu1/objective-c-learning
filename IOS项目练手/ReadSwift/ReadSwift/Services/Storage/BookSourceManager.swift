@@ -6,21 +6,32 @@
 //
 
 import Foundation
+import Combine
 
-class BookSourceManager {
+class BookSourceManager: ObservableObject {
 
     // MARK: - Singleton
 
     static let shared = BookSourceManager()
     private init() {
         initializeDefaultSources()
+        loadSources()
     }
+
+    // MARK: - Published Properties
+
+    @Published var sources: [BookSource] = []
 
     // MARK: - Constants
 
     private let sourcesKey = "ReadSwift_BookSources"
 
     // MARK: - Public Methods
+
+    /// 加载书源
+    func loadSources() {
+        sources = getAllSources()
+    }
 
     /// 获取所有书源
     func getAllSources() -> [BookSource] {
@@ -33,27 +44,31 @@ class BookSourceManager {
 
     /// 获取启用的书源
     func getEnabledSources() -> [BookSource] {
-        return getAllSources().filter { $0.isEnabled }
+        return sources.filter { $0.isEnabled }
     }
 
     /// 添加书源
     func addSource(_ source: BookSource) {
-        var sources = getAllSources()
-
         if let index = sources.firstIndex(where: { $0.sourceId == source.sourceId }) {
             sources[index] = source
         } else {
             sources.append(source)
         }
-
         saveSources(sources)
     }
 
     /// 删除书源
     func removeSource(_ source: BookSource) {
-        var sources = getAllSources()
         sources.removeAll { $0.sourceId == source.sourceId }
         saveSources(sources)
+    }
+
+    /// 切换书源启用状态
+    func toggleSource(_ source: BookSource) {
+        if let index = sources.firstIndex(where: { $0.sourceId == source.sourceId }) {
+            sources[index].isEnabled.toggle()
+            saveSources(sources)
+        }
     }
 
     /// 更新书源
@@ -77,7 +92,9 @@ class BookSourceManager {
                 isEnabled: true,
                 priority: 100
             )
-            addSource(defaultSource)
+            var allSources = getAllSources()
+            allSources.append(defaultSource)
+            saveSources(allSources)
         }
     }
 }
